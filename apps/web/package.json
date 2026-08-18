@@ -1,0 +1,30 @@
+{
+  "name": "@nfs/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "@nfs/domain": "workspace:*",
+    "@nfs/db": "workspace:*",
+    "luxon": "^3.7.2",
+    "zod": "^4.4.3",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "@types/luxon": "^3.7.1",
+    "vitest": "^4.1.11"
+  }
+}

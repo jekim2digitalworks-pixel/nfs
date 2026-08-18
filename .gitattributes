@@ -1,0 +1,6 @@
+# 개발자가 Windows/Linux 를 오가도 diff 가 줄바꿈으로 오염되지 않게 한다.
+# 저장소에는 항상 LF 로 들어간다.
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.jpg binary

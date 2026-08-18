@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 은 의존성의 postinstall 을 기본 차단한다.
+# 여기 적은 것만 허용한다 — 공급망 사고 면적을 좁히기 위한 화이트리스트다.
+onlyBuiltDependencies:
+  - '@prisma/engines'   # 쿼리 엔진 바이너리 다운로드. 없으면 prisma generate 가 실패한다
+  - prisma
+  - unrs-resolver       # eslint 의 모듈 해석기 (네이티브 바이너리)

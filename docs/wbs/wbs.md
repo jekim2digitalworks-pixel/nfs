@@ -7,34 +7,52 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **11 / 44 작업 완료 (25%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **13 / 44 작업 완료 (30%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** Phase 0 마무리 → **Phase 1 착수 가능** (블로커 없음)
+**지금 단계:** **Phase 1 진행 중** — 스캐폴딩 완료, 스키마 차례
 
-**최근 완료:** **스택 전면 전환 + 배포 대상 확정.** 문서 갱신 완료 (N-020 ~ N-023)
+**최근 완료:** **O-02 스캐폴딩 ✅ · B-16 시간 유틸 ✅**
+`pnpm dev`가 실제로 뜨고 화면이 렌더된다. 빌드·린트·타입체크·테스트 전부 통과.
 
-**확정된 것 요약**
-- **Next.js 14 App Router 단일 앱** — 화면 + API(Route Handlers) 한 곳 (N-023)
-- **Supabase PostgreSQL + Prisma 5** (N-022) · MySQL/EC2 폐기
-- **배치는 GitHub Actions 크론** → `x-cron-secret` 보호 엔드포인트 (N-022)
-- **Vercel Hobby 무료 배포**로 먼저 테스트
-- `packages/domain` 공유 — ⭐ 예산 계산기가 서버·클라 한 벌
-- 구글 로그인 단독 · 다크 온리 · 모바일 전용 · 깊이 줌 MVP 제외
+**지금 코드가 어디까지 있나**
+```
+apps/web              Next 16 부팅 확인 (임시 화면)
+packages/domain/time  ⭐ APP_ZONE · workDateOf · weekStartDateOf … (19 테스트 통과)
+packages/domain/types CategoryTag · BlockStatus · SourceType (Zod)
+packages/domain       errors.ts — 에러 코드 7종
+packages/db           빈 껍데기 (O-03 대기)
+eslint.config.mjs     ⭐ 시간·XSS·서버경계 방어 규칙 4종 (작동 확인)
+```
+
+**확인된 것 (실측)**
+- 프로세스 TZ를 **UTC · KST · New_York · Kiritimati(UTC+14)** 로 바꿔도 도메인 테스트 19건이 동일하게 통과 → **존이 코드에 박혀 있다**
+- 루트 레이아웃의 `dynamic = 'force-dynamic'` 없이는 화면이 `○ Static`으로 굳어 **빌드 시점 날짜가 박제된다** (재현 후 수정)
+- 버전 고정: Next **16.3.1** · React **19.2.8** · Prisma **7.9.1** · TS **5.9.3** (→ N-024)
 
 **다음에 할 일 (순서대로):**
 
-1. **O-02 스캐폴딩** — pnpm 모노레포 + Next.js + Prisma. **설치 필요 없음, 지금 바로 시작 가능**
-2. **O-03 Prisma 스키마** — `02-데이터모델.md`의 테이블 6종을 `schema.prisma`로
-3. **B-05 예산 계산기** (`packages/domain`) — ⭐ 가장 위험한 작업. **테스트 먼저**(T-02)
-4. **O-04~O-06** 배포 파이프라인 — Q-011(계정·시크릿) 답이 오면
+1. **O-03 Prisma 스키마** — `02-데이터모델.md`의 테이블 6종을 `schema.prisma`로.
+   ⚠️ 마이그레이션 실행은 Q-011(Supabase) 필요. **스키마 작성 + `prisma generate`까지는 지금 가능**
+2. **B-05 예산 계산기** ⭐⭐ — `packages/domain/budget`. 순수 함수라 DB 없이 끝까지 간다. **테스트 먼저**
+3. **U-02 토큰 CSS + 루트 셸** — 확정 시안의 토큰을 `styles/tokens.css`로. 임시 화면 교체
+4. **O-04~O-06** 배포 파이프라인 — Q-011 답이 오면
 
 **블로커:** 없음
-**사용자 확인 대기:** Q-011(외부 계정·시크릿 발급) · Q-010(평생 화면 기준 나이)
-→ 둘 다 **위 1~3번을 막지 않는다.** 계정 없이 스캐폴딩·도메인 로직·퍼블리싱을 끝까지 할 수 있다.
+**사용자 확인 대기:** Q-011(외부 계정·시크릿) · Q-010(평생 화면 기준 나이)
+→ 둘 다 **위 1~3번을 막지 않는다.**
+
+**개발 명령**
+```
+pnpm dev          개발 서버 (3000)
+pnpm build        프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
+pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
+pnpm typecheck    전 패키지
+pnpm test         전 패키지
+```
 
 ---
 
@@ -55,8 +73,8 @@
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
-| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 0 / 6 | ⬜ **지금 여기** |
-| **2** | 핵심 도메인 · API | 1 / 8 | ⬜ |
+| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 1 / 6 | 🟡 **지금 여기** |
+| **2** | 핵심 도메인 · API | 2 / 9 | 🟡 |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
 | **4** | 화면 구현 | 1 / 9 | ⬜ |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
@@ -89,7 +107,7 @@
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| O-02 | pnpm 모노레포 + Next.js + Prisma 스캐폴딩 | 개발 | `pnpm-workspace.yaml`, `apps/web/`, `packages/*` | — | ⬜ |
+| O-02 | pnpm 모노레포 + Next.js + Prisma 스캐폴딩 | 개발 | `pnpm-workspace.yaml`, `apps/web/`, `packages/*`, `eslint.config.mjs` | — | ✅ |
 | O-03 | Prisma 스키마 6종 + 초기 마이그레이션 | 개발 | `packages/db/prisma/schema.prisma` | O-02, A-02 | ⬜ |
 | O-04 | Supabase 연결 (풀러/직결 분리 · 싱글턴) | 개발 | `src/server/prisma.ts`, `.env.example` | O-03, **Q-011** | ⛔ |
 | O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/http/**` | O-02 | ⬜ |
@@ -106,7 +124,7 @@
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | B-05 | **24시간 예산 계산기 (구간 병합)** ⭐⭐ | 개발 | `packages/domain/budget/**` | — | ⬜ |
-| B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` | — | ⬜ |
+| B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` (19 테스트) | — | ✅ |
 | B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**`, `src/server/services/block.ts` | B-16, O-03 | ⬜ |
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
 | B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/google/**` | O-05, **Q-011** | ⛔ |

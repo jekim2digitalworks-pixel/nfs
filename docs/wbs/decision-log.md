@@ -431,3 +431,75 @@ packages/db        Prisma schema + client
 - 배포 대상이 **1곳**. Vercel push 한 번으로 화면과 API가 같이 뜬다
 - **동일 출처(same-origin)** — CORS 설정이 사라지고, 세션 쿠키가 그냥 붙는다. `credentials: 'include'`도 불필요
 - Server Component에서 서비스 함수를 **HTTP 없이 직접 호출**할 수 있다. 첫 렌더에서 자기 자신에게 fetch 하지 않는다
+
+---
+
+### N-024 · 버전 고정과 Next 16 실측 정정 ⭐
+📅 2026-08-19 · 개발
+
+O-02 스캐폴딩을 실제로 돌려보고 **아키텍처 문서 v3.0의 오류 3건을 잡았다.**
+문서를 기억으로 쓰면 안 되는 이유를 그대로 보여준 사례라 정정 내용을 남긴다.
+
+#### 고정된 버전
+
+| 패키지 | 버전 | 비고 |
+|---|---|---|
+| Next.js | **16.3.1** | Turbopack이 `dev`·`build` 기본값 |
+| React | **19.2.8** | |
+| Prisma | **7.9.1** | |
+| TypeScript | **5.9.3** | ⚠️ 최신은 7.0.2(네이티브 포트)지만 **5 라인 유지** |
+| Luxon / Zod / Vitest | 3.7.2 / 4.4.3 / 4.1.11 | |
+| Node / pnpm | 24.11.1 / 10.23.0 | Next 16 최소 요구 Node 20.9 |
+
+**TypeScript 7을 쓰지 않는 이유:** `eslint-config-next` 16.3.1이 TS 5를 전제로 붙어 있고,
+`create-next-app`도 `^5`를 깐다. 컴파일러 메이저를 프레임워크보다 앞서 올릴 이유가 없다.
+TS 7은 툴체인이 따라온 뒤에 본다.
+
+#### 정정 1 — `export const runtime = 'nodejs'` 는 불필요하다
+
+아키텍처 v3.0 §3.1에 *"Prisma는 Edge에서 못 도니 `runtime = 'nodejs'`를 명시한다"* 라고 썼는데,
+**Next 16에서 `'nodejs'`가 기본값이고 Edge 런타임은 deprecated 다.**
+동봉 문서(`node_modules/next/dist/docs`)가 *"`runtime` export를 제거하라"* 고 명시한다.
+→ **핸들러에 쓰지 않는다.**
+
+#### 정정 2 — 동적 렌더는 루트 레이아웃에서 한 번만
+
+*"핸들러마다 `dynamic = 'force-dynamic'`"* 이라고 썼지만, 검증 중 **실제로 사고를 재현했다.**
+
+```
+Route (app)
+┌ ○ /          ← nowInAppZone() 을 쓰는 화면이 Static 으로 프리렌더됐다
+```
+
+`await cookies()` 같은 Request-time API를 건드리기 전에는 Next가 정적으로 굳힌다.
+**빌드 시점의 날짜가 박제된 HTML이 배포된다.** 시간이 제품인 앱에서 이건 치명적이다.
+
+루트 레이아웃에 한 줄 넣자 전 라우트가 `ƒ (Dynamic)`으로 바뀌었다.
+NFS는 **정적 프리렌더 대상 화면이 하나도 없으므로** 이게 옳은 위치다.
+세션 쿠키를 읽으면 자동으로 동적이 되긴 하지만, 그건 *우연히 그렇게 되는* 방어라 의도를 적어둔다.
+
+#### 정정 3 — Request-time API가 전부 비동기다 (Next 16 파괴적 변경)
+
+Next 15에서 도입되고 **16에서 동기 접근이 완전히 제거**됐다.
+
+```ts
+const cookieStore = await cookies();        // ⚠️ await 필수
+const { blockId } = await props.params;     // ⚠️ params 도 Promise 다
+```
+
+`cookies` · `headers` · `draftMode` · `params` · `searchParams` 전부 해당된다.
+`withMember` 가드와 `app/focus/[blockId]/page.tsx` 설계에 직접 영향을 준다.
+
+#### 부수 결정
+
+- **Cache Components(`use cache`)는 MVP에서 켜지 않는다.** NFS 화면은 거의 전부 회원별 동적 데이터라 캐시할 대상이 없고, 새 캐싱 모델은 *"남의 통계가 보이는"* 사고 면적만 넓힌다
+- **워크스페이스 패키지는 TS 소스를 직접 내보낸다** (`exports: "./src/index.ts"`) + `transpilePackages`. 빌드 단계를 없애 `packages/domain` 수정이 즉시 반영된다
+  → 이때 내부 import에 `.js` 확장자를 쓰면 번들러가 해석하지 못한다. **확장자 없이 쓴다**
+- **pnpm 10의 postinstall 차단**은 `onlyBuiltDependencies` 화이트리스트로 푼다. 전면 허용하지 않는 건 공급망 사고 면적을 좁히기 위해서다
+
+#### 교훈
+
+> 이 프로젝트의 스택은 전부 내 학습 시점 이후 메이저가 올라가 있었다.
+> **문서를 기억으로 쓰면 틀린다.** Next 16이 `node_modules/next/dist/docs`에 자기 문서를 동봉하고
+> *"이건 네가 아는 Next가 아니다"* 라고 경고하는 것도 같은 이유다.
+> **앞으로 프레임워크 API를 문서에 적기 전에 동봉 문서를 먼저 읽는다.**
