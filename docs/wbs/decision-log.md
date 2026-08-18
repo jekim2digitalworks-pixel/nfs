@@ -228,3 +228,206 @@ EC2 배포 관행과 RDS 접근성. PostgreSQL의 통계 함수·파티셔닝 �
 - **오늘 예산에서는 차감** — 실제로 흘러간 시간이므로
 
 두 기준이 다른 것이 정상이다. 가계부는 *무엇에 썼는가*를 재고, 예산은 *얼마나 남았는가*를 잰다.
+
+---
+
+### N-020 · 스택 전환 — Java/Spring → **TypeScript 전면** ⭐⭐
+📅 2026-08-18 · 개발 · 기획
+
+**N-012(Java 17 + Spring Boot 3.2)를 폐기한다.**
+
+사유: 회사 노트북이 **Java 11을 유지해야 한다.** Spring Boot 3.x는 JDK 17을 요구하고, Boot 2.7은 이미 OSS 지원 종료다. JDK를 못 바꾸는 상황에서 JVM 스택은 성립하지 않는다.
+
+**로컬 환경 실측**
+```
+Node   v24.11.1   ✅   pnpm 10.23.0 ✅   MySQL 8.0.44 ✅
+Docker / Go / .NET / Rust / JDK17     ❌
+```
+**설치가 0인 스택은 TypeScript + Node 하나뿐이었다.** 이 대화가 시작된 이유가 "설치를 못 한다"인데 그 제약을 유일하게 통과한다.
+
+#### 확정 스택
+
+| 층 | 선택 | 대체된 것 |
+|---|---|---|
+| 언어 | **TypeScript** | Java 17 |
+| 백엔드 | **NestJS** | Spring Boot |
+| ORM | **Prisma** | JPA + QueryDSL |
+| 마이그레이션 | **Prisma Migrate** | Flyway |
+| 프론트 | **Next.js (App Router)** | JSP + jQuery |
+| 배치 | **NestJS standalone worker** | `@Scheduled` |
+| 테스트 | **Vitest** | JUnit |
+| DB | **MySQL 8** (변경 없음) | — |
+| 패키지 | **pnpm workspace 모노레포** | Gradle |
+
+#### 이 선택의 근거
+
+1. **사용자가 이미 TypeScript로 프로젝트를 완성했다.** `cal_bak`은 9,000줄 규모의 TS 프로젝트다. 새 언어 학습이 아니라 쓰던 것을 쓰는 것이다.
+2. **NestJS는 Spring Boot와 개념이 1:1로 대응한다.** `@Injectable`/`@Controller`/생성자 주입/`@Module`/`@Cron`. 설계한 아키텍처가 이름만 바뀌어 옮겨간다.
+3. **Prisma는 QueryDSL과 같은 철학이다.** 스키마에서 타입을 생성한다.
+4. ⭐ **예산 계산기를 서버와 클라이언트가 같은 코드로 쓴다.** 이 프로젝트 최대 위험으로 꼽았던 *"계산기가 두 벌이면 두 화면 숫자가 어긋난다"* 가 `packages/domain` 공유로 **구조적으로 제거된다.**
+
+#### 버린 것 (정직하게)
+
+- **`java.time`.** JS `Date`에는 `LocalDate`/`LocalDateTime` 구분이 없다. 자정 경계·주간 마감이 핵심 도메인인 이 프로젝트에서 이건 실질적 손실이다.
+  → 대응: raw `Date` 산술 **금지**, Luxon만 사용, `TZ=Asia/Seoul` 프로세스 고정, 타임존 테스트 4건(T-03) 강화
+- **멀티스레드.** Node는 싱글 스레드라 배치가 API를 막는다.
+  → 대응: `apps/worker` 별도 프로세스로 분리. 배치는 반드시 1개만 돌아야 하므로 오히려 배포 구성이 제약을 표현하게 된다
+- **JSP + jQuery** (원래 요구사항). JVM이 사라지면서 함께 사라진다.
+
+#### 문서 영향
+
+정책과 구현을 분리해 쓴 덕에 **약 70%가 그대로 살아남았다.**
+
+| 문서 | 상태 |
+|---|---|
+| 기획 01·02·03 · 디자인 01 + 시안 3종 | ✅ 전부 유효 (언어 무관) |
+| 개발 02 데이터모델 | ✅ **스키마 100% 유효** (MySQL 8 그대로) |
+| 개발 03 API명세 | ✅ 거의 유효 (REST는 언어 무관) |
+| 테스트 01 (46 케이스) | ✅ 유효 (JUnit → Vitest 표기만) |
+| 개발 01 아키텍처 · 퍼블 01 · CLAUDE.md §3 | ⚠️ 재작성 |
+
+---
+
+### N-021 · 프론트엔드는 Next.js (App Router)
+📅 2026-08-18 · 디자인 · 개발
+
+세 가지 안(서버 템플릿+바닐라 TS / Next.js+NestJS / Next.js 단독) 중 **Next.js + NestJS 분리**를 채택.
+
+**대가를 알고 고른다:** 확정 시안 A/B/C는 바닐라 HTML+CSS라 서버 템플릿이면 거의 복붙이었지만, **React JSX로 재작성**해야 한다. `cal_bak`이 프레임워크 없는 TS였으므로 React는 새로 배우는 부분이다.
+
+**그럼에도 채택한 이유:** 생태계·자료·채용에서 표준이고, 팀 확장 여지가 있다. 학습 비용은 1회지만 표준의 이득은 프로젝트 내내 누적된다.
+
+#### 프로세스 구성
+
+```
+apps/web     Next.js      화면 (3000)
+apps/api     NestJS       REST API + 구글 OAuth (3001)
+apps/worker  NestJS       배치 전용 (자정 정산 · 주간 마감)
+packages/domain           ⭐ 예산 계산기 · 시간 유틸 (순수 함수)
+packages/db               Prisma schema + client
+```
+
+**인증은 `apps/api`가 소유한다** (Auth.js를 web에 두지 않는다).
+구글 **리프레시 토큰을 서버가 갖고 있어야 `worker`가 캘린더를 동기화**할 수 있기 때문이다. 토큰이 web 세션에만 있으면 배치가 캘린더를 읽지 못한다.
+세션은 httpOnly 쿠키, EC2에서 nginx가 `/api` → api, 나머지 → web으로 리버스 프록시.
+
+---
+
+### N-022 · 인프라 — Supabase + Vercel 무료 티어 ⭐⭐
+📅 2026-08-19 · 개발 · 인프라
+
+**N-015(MySQL 8)와 N-020의 "EC2 배포"를 폐기한다.**
+
+사용자 요구: *"supabase, vercel 무료버전으로 일단 배포해서 테스트할꺼야."*
+
+| 항목 | 새 결정 | 폐기 |
+|---|---|---|
+| DB | **Supabase (PostgreSQL 15)** | MySQL 8 (N-015) |
+| 호스팅 | **Vercel Hobby** | AWS EC2 |
+| 배치 | **GitHub Actions 크론 → 보호된 HTTP 엔드포인트** | `apps/worker` 상주 프로세스 |
+
+#### 이 결정이 깨뜨린 것 세 가지
+
+**1. MySQL → PostgreSQL.** Prisma라 `provider` 한 줄이지만 raw SQL은 방언이 다르다.
+`DATE_FORMAT(d,'%Y-%m')` → `to_char(d,'YYYY-MM')`. 스키마·제약·인덱스는 그대로 유효하다.
+오히려 Postgres는 네이티브 `enum`이 있어 태그·상태 컬럼이 더 정확해진다.
+
+**2. ⛔ `apps/worker`가 죽는다. — 가장 큰 손실.**
+Vercel은 서버리스라 **상주 프로세스가 없다.** `@nestjs/schedule`의 `@Cron`은 영원히 실행되지 않는다.
+자정 정산과 주간 마감은 이 제품의 핵심이므로 **배치를 밖에서 밀어 넣는 구조로 뒤집는다.**
+
+**3. `TZ=Asia/Seoul` 고정이 불가능해진다.**
+Vercel 함수는 UTC로 돈다. N-020에서 세운 "프로세스 TZ 고정" 방어선이 사라진다.
+→ **대응이 오히려 더 강해졌다:** 프로세스 TZ에 *기대지 않고*, `packages/domain/time`이
+모든 Luxon 호출에 `zone: 'Asia/Seoul'`을 명시하는 **유일한 출구**가 된다.
+환경에 의존하던 방어를 코드로 끌어내린 셈이라, EC2로 옮겨가도 이 코드는 그대로 옳다.
+
+#### 배치 — GitHub Actions 크론
+
+세 안(Vercel Cron / GitHub Actions / Supabase pg_cron) 중 **GitHub Actions**를 채택.
+
+| 안 | 왜 안 골랐나 |
+|---|---|
+| Vercel Cron | Hobby는 개수·빈도 제한이 있고 **실행 시각이 정확하지 않다.** "월요일 04:00"이 의미를 갖는 주간 마감에 부적합 |
+| Supabase `pg_cron` | DB 안에서 도는데 정산 로직은 앱에 있다. `pg_net`으로 HTTP를 쏘는 우회가 필요해 층이 하나 더 는다 |
+| **GitHub Actions** ✅ | 무료 · 개수 제한 없음 · 분 단위 정확 · 워크플로가 리포에 커밋되어 **이력이 남는다** |
+
+```yaml
+# .github/workflows/daily-settlement.yml
+on:
+  schedule:
+    - cron: '5 15 * * *'   # UTC 15:05 = KST 00:05  ⭐ Actions 크론은 UTC 고정이다
+```
+
+⚠️ **시차 환산을 주석으로 남기는 곳을 한 군데로 가둔다.** 이 프로젝트가 반복해서 밟는 함정이
+인프라 레벨에서 다시 나타난 것이므로, 크론 표현식 옆에 KST 환산을 반드시 병기한다.
+
+**보호:** 엔드포인트는 `x-cron-secret` 헤더로만 열린다. 공개 URL에 정산 트리거가 노출되면
+누구나 남의 원장을 정산시킬 수 있다. 시크릿 불일치 시 **404**를 반환한다(401이 아니라 —
+존재 자체를 알리지 않는다).
+
+**부수 효과:** Supabase 무료 프로젝트는 일정 기간 비활성이면 일시정지된다.
+매일 도는 크론이 이걸 자연히 막아준다.
+
+#### Prisma × 서버리스 — 커넥션 고갈 ⭐
+
+함수 호출마다 커넥션을 새로 잡으면 Postgres 한도에 금방 닿는다. **잘 돌다가 갑자기 터진다.**
+
+```
+DATABASE_URL = postgresql://…@…pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+DIRECT_URL   = postgresql://…@…supabase.com:5432/postgres
+```
+
+- 런타임은 **풀러(6543)**, 마이그레이션은 **직결(5432)**. Prisma `datasource`에 `directUrl`로 분리 선언
+- `connection_limit=1` — 함수 인스턴스 하나가 커넥션 하나만 쥔다
+- `PrismaClient`는 **모듈 스코프 싱글턴**. 핸들러 안에서 `new` 하면 호출마다 커넥션이 는다
+
+#### 이건 "테스트 배포" 결정이다
+
+무료 티어의 제약(함수 실행시간 상한, 콜드스타트, 프로젝트 일시정지)은 검증 단계에선 받아들일 만하지만
+사용자가 늘면 다시 볼 항목이다. **다만 Postgres 전환과 배치 외부화는 되돌리지 않는다** —
+둘 다 EC2로 옮겨가도 그대로 유효하고, 오히려 더 이식성이 높다.
+
+---
+
+### N-023 · NestJS 폐기 — Next.js 단일 앱 (Route Handlers)
+📅 2026-08-19 · 개발
+
+**N-020·N-021의 `apps/api`(NestJS) / `apps/worker` 3프로세스 구성을 폐기한다.**
+
+Vercel 서버리스 위에서는 NestJS의 이점 대부분이 사라진다.
+요청마다 Nest 부트스트랩이 돌아 콜드스타트가 길어지고, 상주 프로세스가 없으니 `@Cron`도 못 쓴다.
+**남는 건 데코레이터 문법뿐인데, 그 대가로 배포 복잡도를 전부 떠안게 된다.**
+
+```
+apps/web/src/app/
+├── (screens)/…                     화면 (Server Component)
+└── api/
+    ├── blocks/route.ts             POST 생성 · GET 목록
+    ├── blocks/[id]/pause/route.ts  상태 전이
+    ├── day/route.ts                하루 예산 + 블록 + 일정
+    ├── statistics/…/route.ts       통계
+    ├── auth/google/…/route.ts      ⭐ OAuth (리프레시 토큰은 서버에서만)
+    └── jobs/
+        ├── daily-settlement/route.ts   ⭐ GitHub Actions 가 호출
+        └── weekly-closing/route.ts
+
+packages/domain    ⭐⭐ 그대로 유지 — 이 전환의 영향을 받지 않는다
+packages/db        Prisma schema + client
+```
+
+**N-021의 인증 근거는 유지된다.** 리프레시 토큰을 서버가 가져야 배치가 캘린더를 읽을 수 있다는 것이
+`apps/api` 분리의 이유였는데, **토큰은 어차피 DB에 있다.** Route Handler도 서버에서 돌므로 조건을 만족한다.
+프로세스를 나눌 이유가 사라진 것이지, 원칙이 틀렸던 게 아니다.
+
+#### 잃은 것 (정직하게)
+
+- **NestJS DI 컨테이너.** 서비스 조립을 손으로 한다 → `lib/services/` 에 팩토리 함수로 명시적 조립
+- **`class-validator` 파이프 자동 적용.** → Route Handler 입구에서 **Zod** 스키마로 파싱. `packages/domain`의 타입과 한 벌로 묶는다
+- **계층 강제.** 프레임워크가 막아주지 않으므로 규약으로 지킨다 (아키텍처 §3)
+
+#### 얻은 것
+
+- 배포 대상이 **1곳**. Vercel push 한 번으로 화면과 API가 같이 뜬다
+- **동일 출처(same-origin)** — CORS 설정이 사라지고, 세션 쿠키가 그냥 붙는다. `credentials: 'include'`도 불필요
+- Server Component에서 서비스 함수를 **HTTP 없이 직접 호출**할 수 있다. 첫 렌더에서 자기 자신에게 fetch 하지 않는다

@@ -2,29 +2,33 @@
 
 | 항목 | 내용 |
 |---|---|
-| 버전 | v0.9 (초안 — B-14 진행 중) |
-| 최종 갱신 | 2026-08-18 |
-| 작성 | 20년차 Java 백엔드 아키텍트 |
+| 버전 | **v1.0** (Route Handlers · N-023 반영 · B-14 진행 중) |
+| 최종 갱신 | 2026-08-19 |
+| 작성 | 20년차 백엔드 아키텍트 |
 | 선행 | `01-아키텍처.md` · `../기획/02-화면정의서.md` |
 
-공통 응답 규약과 에러 코드는 `01-아키텍처.md` 7장 참조.
-모든 API는 세션 인증이 필요하며, **`memberId`는 세션에서 꺼낸다. 요청 파라미터로 받지 않는다.**
+공통 응답 규약과 에러 코드는 `01-아키텍처.md` 8장 참조.
+모든 API는 세션 인증이 필요하며, **`memberId`는 세션 쿠키에서 꺼낸다. 요청 파라미터로 받지 않는다.**
+
+**엔드포인트는 전부 Next.js Route Handler다** — `POST /api/blocks` ↔ `app/api/blocks/route.ts`.
+모든 핸들러에 `runtime = 'nodejs'` · `dynamic = 'force-dynamic'` 을 명시한다 (`01-아키텍처.md` §3.1).
 
 ---
 
-## 1. 페이지 (JSP)
+## 1. 페이지 (App Router)
 
-| 메서드 | 경로 | 화면 |
+| 경로 | 파일 | 화면 |
 |---|---|---|
-| GET | `/` | S-02 리포트 |
-| GET | `/day` | S-03 하루 |
-| GET | `/focus/{activeBlockId}` | S-04 집중 |
-| GET | `/lifetime` | S-06 평생 |
-| GET | `/settings` | S-07 설정 |
-| GET | `/onboarding` | S-01 온보딩 |
+| `/` | `app/page.tsx` | S-02 리포트 |
+| `/day` | `app/day/page.tsx` | S-03 하루 |
+| `/focus/{blockId}` | `app/focus/[blockId]/page.tsx` | S-04 집중 |
+| `/lifetime` | `app/lifetime/page.tsx` | S-06 평생 |
+| `/settings` | `app/settings/page.tsx` | S-07 설정 |
+| `/onboarding` | `app/onboarding/page.tsx` | S-01 온보딩 |
 
-초기 렌더에 필요한 데이터는 JSP 모델로 내려주고, 이후 갱신만 Ajax로 한다.
-**첫 화면을 Ajax로 다시 불러오지 않는다** — 스켈레톤이 깜빡이고 체감 속도가 나빠진다.
+⭐ **초기 데이터는 Server Component가 서비스 함수를 직접 호출해 얻는다.**
+아래 API들은 **화면 진입 후의 갱신용**이다. 같은 프로세스이므로 첫 렌더에서 자기 API를 fetch 하지 않는다.
+**첫 화면을 클라이언트에서 다시 불러오지 않는다** — 스켈레톤이 깜빡이고 체감 속도가 나빠진다.
 
 ---
 
@@ -155,7 +159,33 @@ NFS 쪽 플래그만 바꾼다. **구글 원본은 건드리지 않는다.**
 
 ---
 
-## 6. 아직 정하지 않은 것
+## 6. 배치 (⭐ 내부 전용 · N-022)
+
+**GitHub Actions 크론만 호출한다.** 세션이 아니라 `x-cron-secret` 헤더로 인증한다.
+
+| 메서드 | 경로 | 크론 (UTC) | KST |
+|---|---|---|---|
+| `POST` | `/api/jobs/daily-settlement` | `5 15 * * *` | 매일 00:05 |
+| `POST` | `/api/jobs/weekly-closing` | `0 19 * * 0` | **월** 04:00 |
+
+⚠️ 주간 마감이 크론에서 **일요일(`0`)** 인 이유: KST 월요일 04:00 = UTC 일요일 19:00. 요일까지 밀린다.
+
+```json
+// 응답 — 무엇을 했고 무엇이 남았는지 반드시 내린다
+{ "success": true, "data": {
+    "processedMemberCount": 128, "settledBlockCount": 341,
+    "failedMemberIds": [ 5501 ],
+    "hasMore": false } }
+```
+
+- **`hasMore: true`면 워크플로가 다시 호출한다.** 함수 실행시간 상한 때문에 한 번에 다 못 돌 수 있다
+- 배치는 **멱등하다.** 겹쳐 호출돼도 `TimeLog` UNIQUE가 중복을 막는다
+- 시크릿 불일치 시 **404**를 반환한다 (401이 아니라 — 엔드포인트 존재를 알리지 않는다)
+- 한 회원의 실패가 배치 전체를 멈추지 않는다. `failedMemberIds`로 보고하고 계속 진행한다
+
+---
+
+## 7. 아직 정하지 않은 것
 
 | 항목 | 비고 |
 |---|---|

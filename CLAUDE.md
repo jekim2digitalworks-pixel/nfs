@@ -52,13 +52,16 @@
 1. **과도한 람다·체이닝·축약형 금지.** 단계별 사고(입력 → 처리 → 결과)가 눈에 보이는 코드를 쓴다.
    ```java
    // 이렇게
-   int totalMinutes = 0;
-   for (TimeLog log : logs) {
-       totalMinutes = totalMinutes + log.getActualFocusMinutes();
+   let totalMinutes = 0;
+   for (const log of logs) {
+       totalMinutes = totalMinutes + log.actualFocusMinutes;
    }
    // 이렇게 말고
-   int total = logs.stream().mapToInt(TimeLog::getActualFocusMinutes).sum();
+   const total = logs.reduce((a, l) => a + l.actualFocusMinutes, 0);
    ```
+   TypeScript에서 특히 지킬 것: **`?.`·`??`·삼항 중첩으로 분기를 숨기지 않는다.**
+   조건이 둘 이상이면 `if` 문으로 편다. 화살표 함수보다 이름 있는 `function` 선언을 선호한다 —
+   스택 트레이스에 이름이 찍힌다.
 2. **변수명·메서드명 축약 금지.** `cnt` ✗ `count` ✓ / `calcBdg()` ✗ `calculateDailyBudget()` ✓
 3. **정답 코드만 주지 않는다.** "실무 맥락에서 왜 이 기술과 로직을 골랐는지(트레이드오프)"를 항상 함께 설명한다.
 4. 주석은 *무엇을* 하는지가 아니라 *왜 이렇게* 했는지를 쓴다.
@@ -69,24 +72,33 @@
 
 | 함정 | 대응 |
 |---|---|
-| **EC2 기본 타임존은 UTC.** 자정 정산과 주간 마감이 한국 시간과 9시간 어긋난다 | JVM 타임존 `Asia/Seoul` 고정 (`-Duser.timezone=Asia/Seoul`). 배포 체크리스트 1번 항목 |
+| ⭐ **실행 환경은 UTC다.** Vercel 함수도, GitHub Actions 크론도 UTC로 돈다. 자정 정산과 주간 마감이 9시간(요일까지) 어긋난다 | `TZ` 환경변수에 **기대지 않는다.** `packages/domain/time`이 존을 아는 유일한 곳. 크론 표현식 옆에 KST 환산 주석 병기 |
+| **JS `Date`에는 날짜/시각 타입 구분이 없다.** `new Date('2026-08-19')`는 UTC 자정 → 한국 시간 09:00 | **Luxon만 사용.** raw `Date` 산술 금지. ESLint로 차단 |
 | **숨겨진 탭에서 잰 값은 거짓이다.** `document.hidden`이면 rAF가 멈추고 타이머가 뒤처진다 | 경과 시간은 클라이언트 누적이 아니라 **서버 기준 벽시계**로 계산. 클라 타이머는 표시 전용 |
 | **이관 트랜잭션 중복** — 배치 재실행/네트워크 재시도로 같은 블록이 두 번 정산됨 | `TimeLog(member_id, source_type, source_reference_key)` UNIQUE 제약으로 DB가 막는다 |
 | **구글 캘린더 에코 루프** — 우리가 쓴 일정을 다시 읽어 이중 집계 | 쓸 때 `extendedProperties.private`에 NFS 블록 ID를 심고, 읽을 때 건너뛴다 |
-| **JSP는 fat jar에서 안 돈다** | `war` 패키징 강제 |
-| 사용자 입력이 `innerHTML`로 들어가는 자리 | 전부 이스케이프 (블록 제목, 캘린더 일정 제목) |
+| **서버리스 커넥션 고갈** — 호출마다 커넥션을 잡으면 잘 돌다가 갑자기 터진다 | Supabase 풀러(6543) + `connection_limit=1`. `PrismaClient`는 모듈 스코프 싱글턴. 마이그레이션만 `DIRECT_URL`(5432) |
+| **서버 시크릿이 클라이언트 번들로 샌다** | 서버 코드는 `src/server/` 아래에만. `import 'server-only'`로 빌드가 막게 한다 |
+| 사용자 입력이 화면에 들어가는 자리 | React 기본 이스케이프에 맡기고 **`dangerouslySetInnerHTML` 금지** (블록 제목, 캘린더 일정 제목) |
 
 ---
 
 ## 5. 확정된 기술 결정 (변경하려면 사용자 승인 필요)
 
-- **Backend**: **Java 17 · Spring Boot 3.2 · Gradle 8 · MySQL 8** · JPA · **QueryDSL 5.x (`jakarta` classifier)** · **war 패키징**
-- **Frontend**: JSP + jQuery + Ajax. **TS 번들 없음** — 깊이 줌은 MVP 제외(N-013)
+- **앱**: **TypeScript · Next.js 14+ (App Router) 단일 앱.** 화면 + API(Route Handlers) 한 곳 (N-023)
+- **DB**: **Supabase PostgreSQL 15** · **Prisma 5** · Prisma Migrate (N-022)
+- **배치**: **GitHub Actions 크론 → `x-cron-secret`로 보호된 Route Handler.** 상주 프로세스 없음 (N-022)
+- **호스팅**: **Vercel Hobby (무료)** — 테스트 배포 (N-022)
+- **검증**: Zod · **테스트**: Vitest · **시간**: Luxon
+- **구조**: pnpm 모노레포 — `apps/web` + `packages/domain`(순수 계산) + `packages/db`(Prisma)
 - **인증**: 구글 로그인 단독, 읽기 스코프로 시작 (N-014)
 - **엔티티 분리**: 가변 작업 영역(`ActiveBlock`, `ImportedCalendarEvent`)과 불변 원장(`TimeLog`)을 **물리적으로 분리**
-- **통계**: QueryDSL로 화면 DTO에 **직접 투영(Projection)**
+- ⭐ **예산 계산기는 `packages/domain`에 단 하나.** 서버와 클라가 같은 코드를 쓴다
 - **디자인**: 다크 네이티브 · 모바일 전용 · 화면별 구조 분화 (→ `docs/디자인/01-디자인시스템.md`)
-- **Infra**: 로컬 Windows → AWS EC2 (Linux)
+
+> **폐기된 스택** (되살리려면 결정 로그부터 읽을 것)
+> Java 17 / Spring Boot / JPA / QueryDSL / JSP / jQuery / Gradle → **N-020**
+> NestJS 3프로세스 / MySQL 8 / AWS EC2 → **N-022 · N-023**
 
 전체 이력은 `docs/wbs/decision-log.md`.
 
@@ -107,8 +119,11 @@
 | 마크업을 어떻게 짜나 | `docs/퍼블/01-퍼블리싱가이드.md` |
 | 서버 구조 | `docs/개발/01-아키텍처.md` |
 | 테이블·컬럼 | `docs/개발/02-데이터모델.md` |
-| API 스펙 | `docs/개발/03-API명세.md` |
+| API 스펙 · 배치 엔드포인트 | `docs/개발/03-API명세.md` |
 | 무엇을 테스트하나 | `docs/테스트/01-테스트계획.md` |
+
+> ⚠️ 문서가 Java나 NestJS를 말하고 있으면 **오래된 글**이다.
+> 현재 스택의 근거는 결정 로그 **N-020 · N-022 · N-023**.
 
 ---
 
@@ -118,7 +133,10 @@
 깊이 카메라 `src/camera.ts` 가 이식 후보다.
 
 **MVP에서는 쓰지 않는다 — 참조만 한다** (N-013).
-Phase 5 착수 시 라이선스·이력을 정리하고 이식하며, 그때 N-002(TS 번들 예외)를 되살린다.
+Phase 5 착수 시 라이선스·이력을 정리하고 이식한다.
+
+> 이제 NFS도 TypeScript라 **이식 장벽이 사라졌다.** N-002(TS 번들 예외)를 되살릴 필요도 없어졌다 —
+> 스택 전환의 예상 못 한 이득이다.
 
 ---
 

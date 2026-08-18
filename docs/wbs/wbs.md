@@ -5,36 +5,36 @@
 
 | | |
 |---|---|
-| 최종 갱신 | **2026-08-18** |
-| 갱신자 | 기획 (20년차 PM) |
-| 전체 진행률 | **10 / 46 작업 완료 (22%)** · MVP 범위는 43작업 (Phase 5 제외) |
+| 최종 갱신 | **2026-08-19** |
+| 갱신자 | 개발 (아키텍트) |
+| 전체 진행률 | **11 / 44 작업 완료 (25%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** Phase 0 마무리 → Phase 1 진입 대기
+**지금 단계:** Phase 0 마무리 → **Phase 1 착수 가능** (블로커 없음)
 
-**최근 완료:** 미결 8건 전부 확정 (N-012 ~ N-019). 스택·범위·로그인·DB가 모두 정해졌다.
+**최근 완료:** **스택 전면 전환 + 배포 대상 확정.** 문서 갱신 완료 (N-020 ~ N-023)
 
 **확정된 것 요약**
-- **JDK 17 + Spring Boot 3.2 + Gradle 8 + MySQL 8** (`jakarta`)
-- **깊이 줌은 MVP 제외** → 프론트는 **순수 JSP + jQuery**, TS 번들 없음
-- **구글 로그인 단독** (읽기 스코프로 시작)
-- 다크 온리 · 모바일 전용
+- **Next.js 14 App Router 단일 앱** — 화면 + API(Route Handlers) 한 곳 (N-023)
+- **Supabase PostgreSQL + Prisma 5** (N-022) · MySQL/EC2 폐기
+- **배치는 GitHub Actions 크론** → `x-cron-secret` 보호 엔드포인트 (N-022)
+- **Vercel Hobby 무료 배포**로 먼저 테스트
+- `packages/domain` 공유 — ⭐ 예산 계산기가 서버·클라 한 벌
+- 구글 로그인 단독 · 다크 온리 · 모바일 전용 · 깊이 줌 MVP 제외
 
 **다음에 할 일 (순서대로):**
 
-1. **⛔ 사용자 작업 — 로컬에 JDK 17 설치** (`open-questions.md` Q-009).
-   현재 JDK 11이라 Spring Boot 3.2를 띄울 수 없다. 이것만 되면 Phase 1이 통째로 풀린다.
-2. **D-03 / D-04 시안** — 평생 화면, 블록 생성 시트. 지금 바로 할 수 있다.
-   (D-03은 Q-010 답변이 있으면 더 좋지만, 폴백 가정으로 진행 가능)
-3. **O-02 스캐폴딩** — JDK 17 확인 즉시 `build.gradle` 작성.
-   ⚠️ QueryDSL은 반드시 **`jakarta` classifier**. `javax`로 잡으면 Q타입이 생성되지 않는다.
+1. **O-02 스캐폴딩** — pnpm 모노레포 + Next.js + Prisma. **설치 필요 없음, 지금 바로 시작 가능**
+2. **O-03 Prisma 스키마** — `02-데이터모델.md`의 테이블 6종을 `schema.prisma`로
+3. **B-05 예산 계산기** (`packages/domain`) — ⭐ 가장 위험한 작업. **테스트 먼저**(T-02)
+4. **O-04~O-06** 배포 파이프라인 — Q-011(계정·시크릿) 답이 오면
 
-**블로커:** Q-009 (JDK 17 설치 — 사용자 작업)
-
-**막히지 않고 지금 할 수 있는 것:** D-03, D-04, D-05, D-06
+**블로커:** 없음
+**사용자 확인 대기:** Q-011(외부 계정·시크릿 발급) · Q-010(평생 화면 기준 나이)
+→ 둘 다 **위 1~3번을 막지 않는다.** 계정 없이 스캐폴딩·도메인 로직·퍼블리싱을 끝까지 할 수 있다.
 
 ---
 
@@ -46,6 +46,7 @@
 | 🟡 | 진행 중 |
 | ⬜ | 대기 |
 | ⛔ | 블로킹 — 선행 작업이나 사용자 결정이 필요 |
+| 🅿️ | MVP 제외 (Phase 2 이후) |
 
 ---
 
@@ -54,12 +55,12 @@
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
-| **1** | 개발 환경 · 스키마 | 0 / 5 | ⛔ Q-009 |
-| **2** | 핵심 백엔드 | 0 / 8 | ⬜ |
+| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 0 / 6 | ⬜ **지금 여기** |
+| **2** | 핵심 도메인 · API | 1 / 8 | ⬜ |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
-| **4** | 퍼블리싱 · 프론트 | 1 / 9 | ⬜ |
+| **4** | 화면 구현 | 1 / 9 | ⬜ |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
-| **6** | 품질 · 배포 | 1 / 4 | ⬜ |
+| **6** | 품질 · 운영 | 1 / 4 | ⬜ |
 
 ---
 
@@ -72,43 +73,51 @@
 | P-03 | 화면정의서 | 기획 | `docs/기획/02-화면정의서.md` | P-01, D-02 | ✅ |
 | D-01 | 디자인 시스템 (토큰·타입·모션) | 디자인 | `docs/디자인/01-디자인시스템.md` | — | ✅ |
 | D-02 | 시안 A/B/C (리포트·하루·집중) | 디자인 | `docs/디자인/시안-A~C.html` | D-01 | ✅ |
-| D-03 | 시안 D — z=0 평생 (438,000시간) | 디자인 | `docs/디자인/시안-D-평생.html` | D-01, Q-010 | ⬜ |
+| D-03 | 시안 D — z=0 평생 (438,000시간) | 디자인 | `docs/디자인/시안-D-평생.html` | D-01, (Q-010) | ⬜ |
 | D-04 | 시안 E — 블록 생성 시트 | 디자인 | `docs/디자인/시안-E-블록생성.html` | D-01 | ⬜ |
 | D-05 | 온보딩 · 구글 연동 동의 화면 | 디자인 | `docs/디자인/시안-F-온보딩.html` | P-02 | ⬜ |
 | D-06 | 빈 상태 · 로딩 · 에러 화면 | 디자인 | `docs/디자인/시안-G-상태.html` | D-02 | ⬜ |
 | W-01 | WBS · 결정 로그 · 미결 사항 체계 | 기획 | `docs/wbs/*.md` | — | ✅ |
-| A-01 | 아키텍처 설계 | 개발 | `docs/개발/01-아키텍처.md` | P-02 | ✅ |
-| A-02 | 데이터 모델 설계 | 개발 | `docs/개발/02-데이터모델.md` | P-02 | ✅ |
+| A-01 | 아키텍처 설계 (**v3.0** — N-022/023 반영) | 개발 | `docs/개발/01-아키텍처.md` | P-02 | ✅ |
+| A-02 | 데이터 모델 설계 (**v2.0** — Postgres) | 개발 | `docs/개발/02-데이터모델.md` | P-02 | ✅ |
 
 ---
 
-## Phase 1 · 개발 환경 · 스키마
+## Phase 1 · 스캐폴딩 · 스키마 · 배포 골격
+
+> **이 Phase에 로컬 설치 작업이 없다.** Node·pnpm이 이미 있고 DB는 클라우드다 (Q-009 소멸).
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| O-01 | **JDK 17 + Gradle 8 + MySQL 8 설치** | 사용자 | 로컬 환경 | **Q-009** | ⛔ |
-| O-02 | 프로젝트 스캐폴딩 (war + QueryDSL `jakarta` + JSP) | 개발 | `build.gradle`, `src/` | O-01 | ⬜ |
-| O-03 | DB 스키마 + Flyway 마이그레이션 V1~V6 | 개발 | `src/main/resources/db/migration/` | O-02 | ⬜ |
-| B-01 | 엔티티 6종 구현 | 개발 | `domain/**` | O-03, A-02 | ⬜ |
-| B-02 | Repository + QueryDSL Q타입 생성 확인 | 개발 | `repository/**` | B-01 | ⬜ |
+| O-02 | pnpm 모노레포 + Next.js + Prisma 스캐폴딩 | 개발 | `pnpm-workspace.yaml`, `apps/web/`, `packages/*` | — | ⬜ |
+| O-03 | Prisma 스키마 6종 + 초기 마이그레이션 | 개발 | `packages/db/prisma/schema.prisma` | O-02, A-02 | ⬜ |
+| O-04 | Supabase 연결 (풀러/직결 분리 · 싱글턴) | 개발 | `src/server/prisma.ts`, `.env.example` | O-03, **Q-011** | ⛔ |
+| O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/http/**` | O-02 | ⬜ |
+| O-06 | Vercel 첫 배포 (빈 화면 + 헬스체크) | 개발 | `vercel.json`, 배포 URL | O-04, **Q-011** | ⛔ |
+| O-07 | GitHub Actions 크론 2종 + `CRON_SECRET` | 개발 | `.github/workflows/*.yml` | O-06 | ⬜ |
+
+> ⚠️ **O-07의 크론 표현식은 UTC다.** KST 환산 주석을 반드시 병기한다.
+> 자정 정산 `5 15 * * *` / 주간 마감 `0 19 * * 0` (**KST 월요일 = UTC 일요일**)
 
 ---
 
-## Phase 2 · 핵심 백엔드
+## Phase 2 · 핵심 도메인 · API
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| B-03 | 구글 로그인 + 세션 (N-014) | 개발 | `member/**` | B-01 | ⬜ |
-| B-04 | 블록 생명주기 서비스 (생성·시작·정지·재개) | 개발 | `block/ActiveBlockService` | B-01 | ⬜ |
-| B-05 | **24시간 예산 계산기 (구간 병합)** ⭐ | 개발 | `budget/DailyTimeBudgetCalculator` | B-01 | ⬜ |
-| B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐ | 개발 | `block/BlockSettlementService` | B-04 | ⬜ |
-| B-07 | 통계 QueryDSL 투영 (일/주/월/년) | 개발 | `statistics/**` | B-02 | ⬜ |
-| B-08 | 자정 미완료 블록 자동 정산 배치 | 개발 | `batch/DailySettlementJob` | B-06 | ⬜ |
-| B-09 | 주간 마감 배치 (월 04:00) | 개발 | `batch/WeeklyClosingJob` | B-06 | ⬜ |
-| B-14 | API 명세 확정 + 컨트롤러 골격 | 개발 | `docs/개발/03-API명세.md`, `web/**` | B-04 | 🟡 |
+| B-05 | **24시간 예산 계산기 (구간 병합)** ⭐⭐ | 개발 | `packages/domain/budget/**` | — | ⬜ |
+| B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` | — | ⬜ |
+| B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**`, `src/server/services/block.ts` | B-16, O-03 | ⬜ |
+| B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
+| B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/google/**` | O-05, **Q-011** | ⛔ |
+| B-07 | 통계 집계 (일/주/월/년) | 개발 | `src/server/services/statistics.ts` | O-03 | ⬜ |
+| B-08 | 자정 정산 배치 엔드포인트 | 개발 | `app/api/jobs/daily-settlement/route.ts` | B-06, O-07 | ⬜ |
+| B-09 | 주간 마감 배치 엔드포인트 (월 04:00 KST) | 개발 | `app/api/jobs/weekly-closing/route.ts` | B-06, O-07 | ⬜ |
+| B-14 | API 명세 확정 + Route Handler 골격 | 개발 | `docs/개발/03-API명세.md`, `app/api/**` | O-05 | 🟡 |
 
-> ⭐ 표시는 **이 프로젝트에서 가장 위험한 두 작업**이다. 여기서 틀리면 통계 숫자가 조용히 틀린다.
+> ⭐⭐ 표시는 **이 프로젝트에서 가장 위험한 두 작업**이다. 여기서 틀리면 통계 숫자가 조용히 틀린다.
 > 반드시 단위 테스트를 먼저 쓴다 (T-02, `docs/테스트/01-테스트계획.md` 2·3장).
+> **B-05·B-16은 순수 함수라 DB도 계정도 필요 없다. 지금 당장 할 수 있는 가장 가치 있는 작업이다.**
 
 ---
 
@@ -116,50 +125,59 @@
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| B-10 | 구글 OAuth (로그인 + 읽기 스코프) | 개발 | `google/GoogleOAuthService` | B-03 | ⬜ |
-| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `google/CalendarSyncService` | B-10 | ⬜ |
-| B-12 | 색상(colorId) → 태그 매핑 | 개발 | `google/CategoryMappingService` | B-11 | ⬜ |
-| B-13 | 가입 시 1회 과거 백필 (4~8주) | 개발 | `google/BackfillService` | B-11, B-09 | ⬜ |
-| B-15 | 쓰기 파이프 + 에코 루프 차단 | 개발 | `google/CalendarExportService` | B-11 | 🅿️ Phase 2 |
+| B-10 | 구글 OAuth (로그인 + 읽기 스코프 · 토큰 암호화) | 개발 | `src/server/auth/google.ts` | B-03 | ⬜ |
+| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `src/server/services/calendar-sync.ts` | B-10 | ⬜ |
+| B-12 | 색상(colorId) → 태그 매핑 | 개발 | `src/server/services/category-mapping.ts` | B-11 | ⬜ |
+| B-13 | 가입 시 1회 과거 백필 (4~8주) | 개발 | `src/server/services/backfill.ts` | B-11, B-09 | ⬜ |
+| B-15 | 쓰기 파이프 + 에코 루프 차단 | 개발 | `src/server/services/calendar-export.ts` | B-11 | 🅿️ Phase 2 |
 
 ---
 
-## Phase 4 · 퍼블리싱 · 프론트
+## Phase 4 · 화면 구현
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| U-01 | 퍼블리싱 가이드 | 퍼블 | `docs/퍼블/01-퍼블리싱가이드.md` | D-01 | ✅ |
-| U-02 | 공통 토큰 CSS + 레이아웃 셸 | 퍼블 | `webapp/static/css/` | U-01 | ⬜ |
-| U-03 | 리포트 화면 마크업 | 퍼블 | `WEB-INF/jsp/report.jsp` | D-02 | ⬜ |
-| U-04 | 하루 화면 마크업 | 퍼블 | `WEB-INF/jsp/day.jsp` | D-02 | ⬜ |
-| U-05 | 집중 화면 마크업 | 퍼블 | `WEB-INF/jsp/focus.jsp` | D-02 | ⬜ |
-| U-06 | 블록 생성 시트 마크업 | 퍼블 | `WEB-INF/jsp/fragment/` | D-04 | ⬜ |
-| F-01 | **타이머 (서버 시간 기준 동기화)** ⭐ | 퍼블 | `static/js/timer.js` | B-04 | ⬜ |
-| F-02 | Ajax 레이어 + 에러 처리 규약 | 퍼블 | `static/js/api.js` | B-14 | ⬜ |
-| F-03 | 차트 렌더 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `static/js/chart.js` | B-07 | ⬜ |
+| U-01 | 퍼블리싱 가이드 (**v2.0** — Next.js) | 퍼블 | `docs/퍼블/01-퍼블리싱가이드.md` | D-01 | ✅ |
+| U-02 | 토큰 CSS + 루트 셸 + 하단 탭 | 퍼블 | `src/styles/`, `app/layout.tsx` | U-01 | ⬜ |
+| U-03 | 리포트 화면 (시안 A → JSX) | 퍼블 | `app/page.tsx` | U-02, D-02 | ⬜ |
+| U-04 | 하루 화면 (시안 B → JSX) | 퍼블 | `app/day/page.tsx` | U-02, D-02 | ⬜ |
+| U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` | U-02, D-02 | ⬜ |
+| U-06 | 블록 생성 시트 | 퍼블 | `components/block/BlockSheet.tsx` | D-04 | ⬜ |
+| F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/useServerClock.ts` | B-04 | ⬜ |
+| F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` | B-14 | ⬜ |
+| F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/**` | B-07 | ⬜ |
+
+> U-03~U-05는 확정 시안 HTML을 **JSX로 재작성**하는 작업이다 (N-021에서 받아들인 대가).
+> 마크업·CSS는 거의 그대로 옮기고, 상태만 React로 바꾼다.
 
 ---
 
 ## Phase 5 · 깊이 줌 🅿️ MVP 제외 (N-013)
 
-MVP 출시 후 착수한다. 착수 시 N-002(TS 번들 예외)를 되살리고 `cal_bak` 라이선스/이력을 정리한다.
+MVP 출시 후 착수한다. 착수 시 `cal_bak` 라이선스/이력을 정리한다.
 
 | ID | 작업 | 역할 | 산출물 | 상태 |
 |---|---|---|---|---|
-| F-10 | `cal_bak/camera.ts` 이식 + `DEPTH_ROWS` 재정의 | 퍼블 | `static/ts/camera.ts` | 🅿️ |
-| F-11 | 깊이 렌더러 (transform + CSS 변수 알파) | 퍼블 | `static/ts/view.ts` | 🅿️ |
-| F-12 | 핀치/휠 입력 + 탭 점프 연결 (`animateTo`) | 퍼블 | `static/ts/input.ts` | 🅿️ |
+| F-10 | `cal_bak/camera.ts` 이식 + `DEPTH_ROWS` 재정의 | 퍼블 | `lib/camera.ts` | 🅿️ |
+| F-11 | 깊이 렌더러 (transform + CSS 변수 알파) | 퍼블 | `components/depth/**` | 🅿️ |
+| F-12 | 핀치/휠 입력 + 탭 점프 연결 (`animateTo`) | 퍼블 | `hooks/useDepthInput.ts` | 🅿️ |
+
+> ⭐ **이제 TS 프로젝트라 이식 장벽이 사라졌다.** N-002(TS 번들 예외)를 되살릴 필요도 없다 —
+> 스택 전환의 예상 못 한 이득이다.
 
 ---
 
-## Phase 6 · 품질 · 배포
+## Phase 6 · 품질 · 운영
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | T-01 | 테스트 계획 (46 케이스) | QA | `docs/테스트/01-테스트계획.md` | P-02 | ✅ |
-| T-02 | 단위 테스트 (예산 계산기 · 이관 · 마감) | QA | `src/test/**` | B-05, B-06 | ⬜ |
-| T-03 | 통합 테스트 (배치 · 동기화 · 타임존) | QA | `src/test/**` | B-09, B-11 | ⬜ |
-| O-10 | EC2 배포 (**TZ `Asia/Seoul` 고정 필수**) | 개발 | `docs/개발/04-배포.md` | T-03 | ⬜ |
+| T-02 | 단위 테스트 (예산 계산기 · 이관 · 마감) | QA | `packages/domain/**/*.test.ts` | B-05, B-06 | ⬜ |
+| T-03 | 통합 테스트 (배치 · 동기화 · **타임존**) | QA | `apps/web/**/*.test.ts` | B-09, B-11 | ⬜ |
+| O-10 | 운영 문서 (환경변수 · 크론 · 장애 복구) | 개발 | `docs/개발/04-배포.md` | O-07 | ⬜ |
+
+> ⚠️ **T-03의 타임존 테스트는 `TZ=UTC`로 돌린다.** 그게 Vercel/Actions의 실제 환경이다.
+> 예전(EC2 전제)에는 "UTC면 실패해야 한다"였지만 이제 **"UTC에서 전부 통과해야 한다"** 로 뒤집혔다 (N-022).
 
 ---
 
