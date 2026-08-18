@@ -1,0 +1,39 @@
+# ── Java / Gradle ──────────────────────────────
+build/
+!src/**/build/
+.gradle/
+out/
+bin/
+*.class
+*.jar
+*.war
+!gradle/wrapper/gradle-wrapper.jar
+
+# ── IDE ────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# ── 로컬 설정 · 비밀 ──────────────────────────
+# 구글 OAuth 클라이언트 시크릿은 절대 커밋하지 않는다
+src/main/resources/application-local.yml
+src/main/resources/application-secret.yml
+.env
+.env.local
+*.pem
+*.key
+
+# ── OS ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 로그 · 임시 ───────────────────────────────
+logs/
+*.log
+tmp/

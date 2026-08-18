@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NFS 시안 B — 하루 (모바일)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080B;
+  --s1:rgba(255,255,255,.045);
+  --s2:rgba(255,255,255,.075);
+  --hair:rgba(255,255,255,.09);
+  --hair-2:rgba(255,255,255,.055);
+  --tx:#F6F6F8;
+  --tx2:rgba(246,246,248,.60);
+  --tx3:rgba(246,246,248,.34);
+
+  --dev:#7C8CFF; --meet:#FF8066; --study:#B08BFA;
+  --family:#3DDC97; --health:#FFC24B; --self:#4DD8E8; --chore:#8E9AAE;
+  --now:#FFB020;
+
+  --r-xl:30px; --r-lg:22px; --r-md:16px;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --hr:46px;                         /* 1시간 = 46px */
+  --f:'Instrument Sans','Noto Sans KR',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#101014;font-family:var(--f);color:var(--tx);
+  -webkit-font-smoothing:antialiased;display:grid;place-items:center;min-height:100vh}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+.device{position:relative;width:390px;height:844px;border-radius:54px;overflow:hidden;
+  background:var(--bg);
+  box-shadow:0 0 0 11px #17171B,0 0 0 12.5px #34343B,0 50px 110px rgba(0,0,0,.75)}
+@media (min-width:521px) and (max-height:920px){.device{transform:scale(.9)}}
+@media (min-width:521px) and (max-height:840px){.device{transform:scale(.8)}}
+@media (max-width:520px){
+  body{display:block}
+  .device{width:100%;height:100dvh;border-radius:0;box-shadow:none}
+}
+
+/* 앰비언트 — 이 화면은 '지금'이 광원이다. 따뜻하고, 화면 가운데서 난다 */
+.bloom{position:absolute;left:-35%;right:-35%;top:20%;height:54%;pointer-events:none;
+  background:radial-gradient(48% 50% at 50% 42%,rgba(255,176,32,.20),transparent 70%);
+  filter:blur(30px)}
+.bloom-2{position:absolute;left:-20%;right:-40%;top:-18%;height:44%;pointer-events:none;
+  background:radial-gradient(50% 55% at 60% 30%,rgba(124,140,255,.15),transparent 72%);
+  filter:blur(30px)}
+
+.screen{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+
+.status{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:15px 30px 0;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:104px;height:30px;border-radius:16px;background:#000;z-index:6}
+
+.nav{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:22px 22px 0}
+.nav h1{margin:0;font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1.1}
+.nav h1 span{display:block;font-size:12.5px;font-weight:400;color:var(--tx3);
+  letter-spacing:-.005em;margin-top:4px}
+.icon-btn{width:36px;height:36px;border-radius:99px;background:var(--s1);
+  border:1px solid var(--hair);display:grid;place-items:center;color:var(--tx2)}
+
+/* ── 예산 : 선형 캡슐 미터 ─────────────────── */
+.budget{position:relative;z-index:5;margin:20px 14px 0;padding:19px 18px 17px;
+  border-radius:var(--r-xl);border:1px solid var(--hair);
+  background:linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  backdrop-filter:blur(26px)}
+.budget-cap{display:flex;align-items:center;justify-content:space-between;
+  font-size:12.5px;color:var(--tx2);letter-spacing:-.01em}
+.budget-cap em{font-style:normal;color:var(--tx3);font-size:11.5px}
+.budget-num{margin:7px 0 0;font-size:42px;font-weight:600;letter-spacing:-.045em;line-height:1}
+.budget-num i{font-style:normal;font-size:18px;font-weight:500;color:var(--tx2);
+  letter-spacing:-.02em;margin:0 8px 0 2px}
+
+.meter{display:flex;gap:3px;height:11px;margin-top:15px}
+.meter i{display:block;border-radius:99px}
+.meter .m-cal{background:repeating-linear-gradient(115deg,rgba(255,255,255,.32) 0 2px,rgba(255,255,255,.09) 2px 6px)}
+.meter .m-nfs{background:linear-gradient(90deg,var(--dev),#9AA6FF);
+  box-shadow:0 0 14px rgba(124,140,255,.65)}
+.meter .m-free{background:rgba(255,255,255,.07)}
+.keys{display:flex;gap:13px;margin-top:12px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.keys b{width:7px;height:7px;border-radius:99px;display:block}
+.overlap-note{margin:11px 0 0;padding-top:11px;border-top:1px solid var(--hair-2);
+  font-size:11px;color:var(--tx3);letter-spacing:-.005em;line-height:1.5}
+
+/* ── 타임라인 ─────────────────────────────── */
+.tl-h{position:relative;z-index:5;display:flex;align-items:baseline;justify-content:space-between;
+  margin:24px 22px 12px}
+.tl-h span{font-size:13.5px;font-weight:600;letter-spacing:-.02em}
+.tl-h em{font-style:normal;font-size:11px;color:var(--tx3)}
+
+.tl{position:relative;z-index:5;margin:0 14px;padding-left:42px;height:calc(var(--hr) * 9)}
+.grid-h{position:absolute;inset:0;left:0}
+.gl{position:absolute;left:42px;right:0;height:0;border-top:1px solid rgba(255,255,255,.045)}
+.gl b{position:absolute;left:-42px;top:-7px;width:34px;text-align:right;font-size:10.5px;
+  font-weight:500;color:var(--tx3);letter-spacing:-.01em}
+.lane{position:absolute;inset:0 0 0 42px}
+
+/* 캘린더 일정 — 뒤에 깔린 유리 */
+.ev{position:absolute;left:0;right:0;border-radius:var(--r-md);
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);
+  padding:7px 13px 0;text-align:right;overflow:hidden}
+.ev::after{content:"";position:absolute;right:0;top:0;bottom:0;width:2.5px;background:var(--c);opacity:.8}
+.ev-t{font-size:11.5px;font-weight:500;color:var(--tx2);letter-spacing:-.015em;line-height:1.35}
+.ev-m{font-size:9.5px;color:var(--tx3);margin-top:1px}
+
+/* NFS 블록 — 위에 얹힌 카드 */
+.blk{position:absolute;left:0;width:69%;border-radius:var(--r-md);padding:7px 12px;z-index:3;
+  background:linear-gradient(140deg,color-mix(in srgb,var(--c) 36%,transparent),
+                                    color-mix(in srgb,var(--c) 14%,transparent));
+  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
+  backdrop-filter:blur(18px);overflow:hidden}
+.blk-t{font-size:13px;font-weight:600;letter-spacing:-.025em;line-height:1.25}
+.blk-m{font-size:10.5px;color:var(--tx2);margin-top:2px;letter-spacing:-.01em}
+.blk.live{border-color:color-mix(in srgb,var(--c) 78%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 26%,transparent),
+             0 10px 34px color-mix(in srgb,var(--c) 28%,transparent)}
+.blk .prog{position:absolute;left:0;bottom:0;height:2.5px;background:var(--c);
+  box-shadow:0 0 10px var(--c)}
+.live-dot{position:absolute;right:11px;top:12px;width:7px;height:7px;border-radius:99px;
+  background:var(--c);box-shadow:0 0 10px var(--c)}
+.cut{position:absolute;right:11px;bottom:9px;font-size:9.5px;font-weight:600;letter-spacing:-.01em;
+  color:var(--tx2);background:rgba(255,255,255,.09);border:1px solid var(--hair);
+  border-radius:99px;padding:2.5px 8px}
+
+/* 빈 자리 */
+.slot{position:absolute;left:0;width:69%;border-radius:var(--r-md);z-index:2;
+  border:1px dashed rgba(255,255,255,.14);display:grid;place-content:center;
+  color:var(--tx3);font-size:12px;font-weight:500;letter-spacing:-.015em;text-decoration:none}
+.slot:active{border-color:rgba(255,255,255,.3);color:var(--tx2)}
+
+/* 지금 */
+.nowline{position:absolute;left:0;right:0;z-index:8;height:0;
+  border-top:1.5px solid var(--now);box-shadow:0 0 14px rgba(255,176,32,.75)}
+.nowline b{position:absolute;left:-42px;top:-9px;height:18px;width:36px;border-radius:99px;
+  background:var(--now);color:#1A1200;font-size:9.5px;font-weight:700;
+  display:grid;place-content:center;letter-spacing:-.01em}
+.nowline::after{content:"";position:absolute;right:-1px;top:-3.5px;width:7px;height:7px;
+  border-radius:99px;background:var(--now);box-shadow:0 0 12px var(--now)}
+
+/* ── FAB ──────────────────────────────────── */
+.fab{position:absolute;z-index:21;right:20px;bottom:96px;height:50px;padding:0 20px;
+  border-radius:99px;display:flex;align-items:center;gap:8px;
+  background:var(--tx);color:#0A0A0D;font-size:14.5px;font-weight:600;letter-spacing:-.025em;
+  text-decoration:none;box-shadow:0 12px 32px rgba(0,0,0,.55)}
+
+.tabs{position:absolute;z-index:20;left:50%;bottom:26px;transform:translateX(-50%);width:max-content;
+  display:flex;gap:2px;padding:5px;border-radius:99px;
+  background:rgba(22,22,28,.72);border:1px solid var(--hair);
+  backdrop-filter:blur(30px) saturate(180%);box-shadow:0 14px 40px rgba(0,0,0,.55)}
+.tabs a{display:flex;align-items:center;gap:7px;height:42px;padding:0 17px;border-radius:99px;
+  color:var(--tx3);text-decoration:none;font-size:13.5px;font-weight:500;letter-spacing:-.015em}
+.tabs a.on{background:var(--tx);color:#0A0A0D;font-weight:600}
+.pad{height:150px}
+
+@media (prefers-reduced-motion:no-preference){
+  .budget,.tl-h,.tl{animation:up .62s var(--ease) both}
+  .tl-h{animation-delay:.07s}.tl{animation-delay:.11s}
+  @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .live-dot{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.42;transform:scale(.8)}}
+}
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="bloom"></div><div class="bloom-2"></div>
+  <div class="island"></div>
+
+  <div class="screen">
+    <div class="status">
+      <span class="num">14:07</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5 5.6 8a3.4 3.4 0 0 1 4.8 0L8 10.5Zm-4.1-4.3a7.7 7.7 0 0 1 8.2 0l1.4-1.5a9.8 9.8 0 0 0-11 0l1.4 1.5ZM8 .8c-3 0-5.7 1-7.8 2.8l1.4 1.4A9.6 9.6 0 0 1 8 2.8c2.4 0 4.6.8 6.4 2.2l1.4-1.4A12 12 0 0 0 8 .8Z"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.2" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4Z" fill="currentColor" opacity=".4"/></svg>
+      </span>
+    </div>
+
+    <div class="nav">
+      <h1>오늘<span>8월 18일 화요일</span></h1>
+      <button class="icon-btn" aria-label="캘린더 다시 불러오기">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <!-- ── 예산 미터 ───────────────────────── -->
+    <section class="budget">
+      <div class="budget-cap"><span>오늘 남은 시간</span><em>자정까지 9시간 53분</em></div>
+      <p class="budget-num num">13<i>시간</i>30<i>분</i></p>
+
+      <div class="meter" role="img" aria-label="24시간 중 캘린더 7시간, 내 블록 3시간 30분, 남음 13시간 30분">
+        <i class="m-cal" style="width:29.2%"></i>
+        <i class="m-nfs" style="width:14.6%"></i>
+        <i class="m-free" style="width:54.2%"></i>
+      </div>
+
+      <div class="keys">
+        <span><b style="background:rgba(255,255,255,.3)"></b>캘린더 <span class="num">7:00</span></span>
+        <span><b style="background:var(--dev)"></b>내 블록 <span class="num">3:30</span></span>
+        <span><b style="background:rgba(255,255,255,.12)"></b>남음 <span class="num">13:30</span></span>
+      </div>
+      <p class="overlap-note">같은 시각에 겹친 <span class="num">1시간 30분</span>은 한 번만 셌습니다</p>
+    </section>
+
+    <!-- ── 타임라인 ────────────────────────── -->
+    <div class="tl-h"><span>타임라인</span><em>블록은 캘린더 위에 얹힙니다</em></div>
+
+    <div class="tl">
+      <div class="grid-h" aria-hidden="true">
+        <div class="gl" style="top:0"><b>11시</b></div>
+        <div class="gl" style="top:46px"><b>12시</b></div>
+        <div class="gl" style="top:92px"><b>13시</b></div>
+        <div class="gl" style="top:138px"><b>14시</b></div>
+        <div class="gl" style="top:184px"><b>15시</b></div>
+        <div class="gl" style="top:230px"><b>16시</b></div>
+        <div class="gl" style="top:276px"><b>17시</b></div>
+        <div class="gl" style="top:322px"><b>18시</b></div>
+        <div class="gl" style="top:368px"><b>19시</b></div>
+      </div>
+
+      <div class="lane">
+        <div class="ev" style="--c:var(--self);top:46px;height:46px">
+          <div class="ev-t">점심</div><div class="ev-m num">12:00 – 13:00</div>
+        </div>
+        <div class="ev" style="--c:var(--meet);top:138px;height:92px">
+          <div class="ev-t">파트너사 미팅</div><div class="ev-m num">14:00 – 16:00</div>
+          <span class="cut">1시간 겹침 · 차감</span>
+        </div>
+        <div class="ev" style="--c:var(--meet);top:230px;height:46px">
+          <div class="ev-t">디자인 리뷰</div><div class="ev-m num">16:00 – 17:00</div>
+        </div>
+        <div class="ev" style="--c:var(--family);top:345px;height:46px">
+          <div class="ev-t">저녁 약속</div><div class="ev-m num">18:30 – 19:30</div>
+        </div>
+
+        <div class="blk" style="--c:var(--dev);top:92px;height:46px">
+          <div class="blk-t">코드 리뷰</div>
+          <div class="blk-m num">13:00 – 14:00 · 집중 51분</div>
+        </div>
+
+        <div class="blk live" style="--c:var(--dev);top:138px;height:46px">
+          <span class="live-dot"></span>
+          <div class="blk-t">설계 문서 정리</div>
+          <div class="blk-m num">14:00 – 15:00 · 18분 남음</div>
+          <i class="prog" style="width:11.7%"></i>
+        </div>
+
+        <a class="slot" href="시안-C-집중.html" style="top:276px;height:46px">＋ 블록 추가</a>
+
+        <div class="nowline" style="top:143px"><b class="num">14:07</b></div>
+      </div>
+    </div>
+
+    <div class="pad"></div>
+  </div>
+
+  <nav class="tabs">
+    <a href="시안-A-리포트.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 13V7M6 13V3M10 13V9M14 13V5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>리포트</a>
+    <a class="on" href="시안-B-하루.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.8" y="2.8" width="12.4" height="11.4" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M1.8 6.4h12.4M5.3 1.5v2.6M10.7 1.5v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>하루</a>
+    <a href="시안-C-집중.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8.8" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M8 5.8v3l1.9 1.1M6 1.4h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>집중</a>
+  </nav>
+</div>
+</body>
+</html>

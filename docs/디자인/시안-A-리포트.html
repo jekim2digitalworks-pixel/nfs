@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NFS 시안 A — 리포트 (모바일)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════
+   NFS · 공통 시스템  (A/B/C 3화면 공유)
+   크롬이 아니라 소재·타입·모션이 통일의 축이다.
+   ══════════════════════════════════════════════ */
+:root{
+  --bg:#08080B;
+  --bg-2:#0D0D12;
+  --s1:rgba(255,255,255,.045);
+  --s2:rgba(255,255,255,.075);
+  --hair:rgba(255,255,255,.09);
+  --hair-2:rgba(255,255,255,.055);
+  --tx:#F6F6F8;
+  --tx2:rgba(246,246,248,.60);
+  --tx3:rgba(246,246,248,.34);
+
+  --dev:#7C8CFF; --meet:#FF8066; --study:#B08BFA;
+  --family:#3DDC97; --health:#FFC24B; --self:#4DD8E8; --chore:#8E9AAE;
+
+  --r-xl:30px; --r-lg:24px; --r-md:18px; --r-sm:13px;
+  --ease:cubic-bezier(.32,.72,0,1);
+
+  --f:'Instrument Sans','Noto Sans KR',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:#101014; font-family:var(--f); color:var(--tx);
+  -webkit-font-smoothing:antialiased;
+  display:grid; place-items:center; min-height:100vh;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"ss01" 1}
+
+/* ── 디바이스 프레임 (데스크톱에서만) ────────── */
+.device{
+  position:relative; width:390px; height:844px; border-radius:54px; overflow:hidden;
+  background:var(--bg);
+  box-shadow:0 0 0 11px #17171B, 0 0 0 12.5px #34343B, 0 50px 110px rgba(0,0,0,.75);
+}
+@media (min-width:521px) and (max-height:920px){.device{transform:scale(.9)}}
+@media (min-width:521px) and (max-height:840px){.device{transform:scale(.8)}}
+@media (max-width:520px){
+  body{display:block}
+  .device{width:100%;height:100dvh;border-radius:0;box-shadow:none}
+}
+
+/* 앰비언트 광원 — 화면마다 색온도가 다르다 */
+.bloom{position:absolute;left:-30%;right:-30%;top:-24%;height:66%;pointer-events:none;
+  background:radial-gradient(55% 58% at 50% 20%,rgba(124,140,255,.30),transparent 72%);
+  filter:blur(26px)}
+.bloom-2{position:absolute;left:-40%;right:-10%;top:32%;height:46%;pointer-events:none;
+  background:radial-gradient(50% 50% at 30% 50%,rgba(176,139,250,.16),transparent 70%);
+  filter:blur(34px)}
+
+.screen{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+
+/* ── 상태바 + 다이내믹 아일랜드 ─────────────── */
+.status{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:15px 30px 0;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:104px;height:30px;border-radius:16px;background:#000;z-index:6}
+.status svg{display:block}
+
+/* ── 내비 ─────────────────────────────────── */
+.nav{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:22px 22px 0}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;
+  border-radius:99px;background:var(--s1);border:1px solid var(--hair);
+  font-size:14.5px;font-weight:500;color:var(--tx);backdrop-filter:blur(20px)}
+.icon-btn{width:36px;height:36px;border-radius:99px;background:var(--s1);
+  border:1px solid var(--hair);display:grid;place-items:center;color:var(--tx2)}
+
+/* ── 히어로 ───────────────────────────────── */
+.hero{position:relative;z-index:5;padding:26px 22px 0}
+.hero-cap{font-size:13.5px;color:var(--tx2);letter-spacing:-.01em;margin:0 0 8px}
+.hero-num{margin:0;font-size:62px;font-weight:600;letter-spacing:-.045em;line-height:.95}
+.hero-num em{font-style:normal;font-size:26px;font-weight:500;color:var(--tx2);
+  letter-spacing:-.02em;margin:0 10px 0 3px}
+.delta{display:inline-flex;align-items:center;gap:5px;margin-top:14px;height:29px;padding:0 11px;
+  border-radius:99px;background:rgba(61,220,151,.13);border:1px solid rgba(61,220,151,.22);
+  color:var(--family);font-size:13px;font-weight:600;letter-spacing:-.01em}
+
+/* ── 세그먼트 ─────────────────────────────── */
+.seg{position:relative;z-index:5;display:flex;margin:24px 22px 0;padding:3px;
+  background:var(--s1);border:1px solid var(--hair-2);border-radius:99px}
+.seg button{flex:1;height:34px;border:0;background:none;color:var(--tx2);
+  font-family:var(--f);font-size:13.5px;font-weight:500;letter-spacing:-.01em;
+  border-radius:99px;cursor:pointer;transition:color .25s var(--ease)}
+.seg button.on{background:var(--s2);color:var(--tx);box-shadow:0 1px 0 rgba(255,255,255,.09) inset}
+
+/* ── 링 ───────────────────────────────────── */
+.ring-wrap{position:relative;z-index:5;display:grid;place-items:center;margin:14px auto 0;
+  width:236px;height:236px}
+.ring-wrap svg{position:absolute;inset:0;width:100%;height:100%;
+  filter:drop-shadow(0 0 22px rgba(124,140,255,.22))}
+.ring-mid{text-align:center}
+.ring-mid b{display:block;font-size:12px;font-weight:500;color:var(--tx3);letter-spacing:.01em}
+.ring-mid s{display:block;text-decoration:none;font-size:30px;font-weight:600;
+  letter-spacing:-.035em;margin-top:5px}
+.ring-mid u{display:block;text-decoration:none;font-size:12.5px;color:var(--tx2);margin-top:5px}
+
+/* ── 카테고리 목록 ────────────────────────── */
+.list{position:relative;z-index:5;margin:22px 14px 0;padding:6px;
+  background:var(--s1);border:1px solid var(--hair-2);border-radius:var(--r-xl);
+  backdrop-filter:blur(24px)}
+.row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;
+  padding:13px 14px;border-radius:var(--r-lg)}
+.row+.row{box-shadow:0 -1px 0 var(--hair-2)}
+.row:active{background:var(--s1)}
+.dot{width:9px;height:9px;border-radius:99px;box-shadow:0 0 11px currentColor}
+.row-name{font-size:15px;font-weight:500;letter-spacing:-.015em}
+.row-sub{font-size:12px;color:var(--tx3);margin-top:3px;letter-spacing:-.005em}
+.track{height:3px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:7px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:99px}
+.row-val{text-align:right}
+.row-val b{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.02em}
+.row-val s{display:block;text-decoration:none;font-size:11.5px;color:var(--tx3);margin-top:3px}
+
+/* ── 인사이트 ─────────────────────────────── */
+.card{position:relative;z-index:5;margin:14px;padding:18px 18px 19px;border-radius:var(--r-xl);
+  background:linear-gradient(158deg,rgba(255,128,102,.14),rgba(255,128,102,.03));
+  border:1px solid rgba(255,128,102,.2);backdrop-filter:blur(24px)}
+.card-tag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+  letter-spacing:.06em;color:var(--meet);text-transform:uppercase}
+.card p{margin:11px 0 0;font-size:14.5px;line-height:1.62;color:var(--tx);letter-spacing:-.012em}
+.card p b{font-weight:700}
+
+/* ── 월별 스트립 ──────────────────────────── */
+.strip{position:relative;z-index:5;margin:8px 22px 0}
+.strip-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.strip-h span{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.strip-h em{font-style:normal;font-size:11.5px;color:var(--tx3)}
+.bars{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;align-items:end;height:62px}
+.bars i{display:block;border-radius:99px;background:rgba(255,255,255,.11)}
+.bars i.on{background:linear-gradient(180deg,var(--dev),rgba(124,140,255,.35));
+  box-shadow:0 0 14px rgba(124,140,255,.5)}
+.bars-x{display:grid;grid-template-columns:repeat(12,1fr);gap:5px;margin-top:8px;
+  font-size:9.5px;color:var(--tx3);text-align:center}
+.bars-x b{font-weight:600;color:var(--tx2)}
+
+/* ── 플로팅 탭 ────────────────────────────── */
+.tabs{position:absolute;z-index:20;left:50%;bottom:26px;transform:translateX(-50%);width:max-content;
+  display:flex;gap:2px;padding:5px;border-radius:99px;
+  background:rgba(22,22,28,.72);border:1px solid var(--hair);
+  backdrop-filter:blur(30px) saturate(180%);box-shadow:0 14px 40px rgba(0,0,0,.55)}
+.tabs a{display:flex;align-items:center;gap:7px;height:42px;padding:0 17px;border-radius:99px;
+  color:var(--tx3);text-decoration:none;font-size:13.5px;font-weight:500;letter-spacing:-.015em}
+.tabs a.on{background:var(--tx);color:#0A0A0D;font-weight:600}
+.tabs a svg{display:block}
+.pad{height:112px}
+
+@media (prefers-reduced-motion:no-preference){
+  .hero-num,.delta,.seg,.ring-wrap,.list,.card,.strip{animation:up .62s var(--ease) both}
+  .delta{animation-delay:.05s} .seg{animation-delay:.08s} .ring-wrap{animation-delay:.11s}
+  .list{animation-delay:.15s} .card{animation-delay:.19s} .strip{animation-delay:.23s}
+  @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .seg-arc{animation:sweep 1s var(--ease) both .2s}
+  @keyframes sweep{from{stroke-dashoffset:var(--o0)}}
+}
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="bloom"></div><div class="bloom-2"></div>
+  <div class="island"></div>
+
+  <div class="screen">
+    <div class="status">
+      <span class="num">14:07</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 10.5 5.6 8a3.4 3.4 0 0 1 4.8 0L8 10.5Zm-4.1-4.3a7.7 7.7 0 0 1 8.2 0l1.4-1.5a9.8 9.8 0 0 0-11 0l1.4 1.5ZM8 .8c-3 0-5.7 1-7.8 2.8l1.4 1.4A9.6 9.6 0 0 1 8 2.8c2.4 0 4.6.8 6.4 2.2l1.4-1.4A12 12 0 0 0 8 .8Z"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.2" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="8" rx="2" fill="currentColor"/><path d="M23 4v4a2 2 0 0 0 0-4Z" fill="currentColor" opacity=".4"/></svg>
+      </span>
+    </div>
+
+    <div class="nav">
+      <button class="chip">2026년 8월
+        <svg width="11" height="7" viewBox="0 0 11 7" fill="none"><path d="m1 1 4.5 4.5L10 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="설정">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="8.5" cy="8.5" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 1v2M8.5 14v2M16 8.5h-2M3 8.5H1M13.8 3.2l-1.4 1.4M4.6 12.4l-1.4 1.4M13.8 13.8l-1.4-1.4M4.6 4.6 3.2 3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="hero">
+      <p class="hero-cap">이번 달에 쓴 시간</p>
+      <h1 class="hero-num num">187<em>시간</em>30<em>분</em></h1>
+      <span class="delta num">
+        <svg width="9" height="10" viewBox="0 0 9 10" fill="none"><path d="M4.5 9V1m0 0L1 4.5M4.5 1 8 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        지난달보다 17시간 20분
+      </span>
+    </div>
+
+    <div class="seg" role="tablist">
+      <button class="on" role="tab" aria-selected="true">전체</button>
+      <button role="tab" aria-selected="false">집중</button>
+      <button role="tab" aria-selected="false">일정</button>
+    </div>
+
+    <div class="ring-wrap">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <g transform="rotate(-90 100 100)" fill="none" stroke-width="13" stroke-linecap="butt">
+          <circle cx="100" cy="100" r="76" stroke="rgba(255,255,255,.055)" stroke-width="13"/>
+          <circle class="seg-arc" style="--o0:0"      cx="100" cy="100" r="76" stroke="var(--dev)"    stroke-dasharray="121.1 477.5" stroke-dashoffset="0"/>
+          <circle class="seg-arc" style="--o0:-127.1" cx="100" cy="100" r="76" stroke="var(--meet)"   stroke-dasharray="72.3 477.5"  stroke-dashoffset="-127.1"/>
+          <circle class="seg-arc" style="--o0:-205.4" cx="100" cy="100" r="76" stroke="var(--family)" stroke-dasharray="80.6 477.5"  stroke-dashoffset="-205.4"/>
+          <circle class="seg-arc" style="--o0:-292.0" cx="100" cy="100" r="76" stroke="var(--self)"   stroke-dasharray="48.3 477.5"  stroke-dashoffset="-292.0"/>
+          <circle class="seg-arc" style="--o0:-346.3" cx="100" cy="100" r="76" stroke="var(--study)"  stroke-dasharray="45.3 477.5"  stroke-dashoffset="-346.3"/>
+          <circle class="seg-arc" style="--o0:-397.6" cx="100" cy="100" r="76" stroke="var(--chore)"  stroke-dasharray="35.7 477.5"  stroke-dashoffset="-397.6"/>
+          <circle class="seg-arc" style="--o0:-439.3" cx="100" cy="100" r="76" stroke="var(--health)" stroke-dasharray="32.2 477.5"  stroke-dashoffset="-439.3"/>
+        </g>
+      </svg>
+      <div class="ring-mid">
+        <b>가장 많이 쓴 곳</b>
+        <s class="num">개발 52:10</s>
+        <u>전체의 27.8%</u>
+      </div>
+    </div>
+
+    <div class="list">
+      <div class="row">
+        <span class="dot" style="background:var(--dev);color:var(--dev)"></span>
+        <div><div class="row-name">개발</div><div class="row-sub">집중 38:10 · 일정 14:00</div>
+          <div class="track"><i style="width:73%;background:var(--dev)"></i></div></div>
+        <div class="row-val"><b class="num">52:10</b><s class="num">+6:20</s></div>
+      </div>
+      <div class="row">
+        <span class="dot" style="background:var(--family);color:var(--family)"></span>
+        <div><div class="row-name">가족</div><div class="row-sub">집중 16:00 · 일정 18:40</div>
+          <div class="track"><i style="width:46%;background:var(--family)"></i></div></div>
+        <div class="row-val"><b class="num">34:40</b><s class="num">+4:10</s></div>
+      </div>
+      <div class="row">
+        <span class="dot" style="background:var(--meet);color:var(--meet)"></span>
+        <div><div class="row-name">회의</div><div class="row-sub">집중 6:40 · 일정 24:30</div>
+          <div class="track"><i style="width:21%;background:var(--meet)"></i></div></div>
+        <div class="row-val"><b class="num">31:10</b><s class="num">−2:05</s></div>
+      </div>
+      <div class="row">
+        <span class="dot" style="background:var(--self);color:var(--self)"></span>
+        <div><div class="row-name">개인</div><div class="row-sub">집중 8:20 · 일정 12:30</div>
+          <div class="track"><i style="width:40%;background:var(--self)"></i></div></div>
+        <div class="row-val"><b class="num">20:50</b><s class="num">−0:35</s></div>
+      </div>
+      <div class="row">
+        <span class="dot" style="background:var(--study);color:var(--study)"></span>
+        <div><div class="row-name">학습</div><div class="row-sub">집중 14:20 · 일정 5:10</div>
+          <div class="track"><i style="width:74%;background:var(--study)"></i></div></div>
+        <div class="row-val"><b class="num">19:30</b><s class="num">+8:45</s></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="card-tag">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M6 3.4v3.2M6 8.5h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        계획과 실행의 격차
+      </span>
+      <p>캘린더에서 가장 큰 자리를 차지한 건 <b>회의 24시간 30분</b>이었지만,
+         타이머가 실제로 돈 시간은 <b>6시간 40분</b>입니다.</p>
+    </div>
+
+    <div class="strip">
+      <div class="strip-h"><span>월별 추이</span><em>2026</em></div>
+      <div class="bars">
+        <i style="height:38%"></i><i style="height:44%"></i><i style="height:53%"></i>
+        <i style="height:47%"></i><i style="height:57%"></i><i style="height:66%"></i>
+        <i style="height:58%"></i><i class="on" style="height:100%"></i>
+        <i style="height:5%"></i><i style="height:5%"></i><i style="height:5%"></i><i style="height:5%"></i>
+      </div>
+      <div class="bars-x">
+        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+        <span>7</span><b>8</b><span>9</span><span>10</span><span>11</span><span>12</span>
+      </div>
+    </div>
+
+    <div class="pad"></div>
+  </div>
+
+  <nav class="tabs">
+    <a class="on" href="시안-A-리포트.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 13V7M6 13V3M10 13V9M14 13V5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>리포트</a>
+    <a href="시안-B-하루.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.8" y="2.8" width="12.4" height="11.4" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M1.8 6.4h12.4M5.3 1.5v2.6M10.7 1.5v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>하루</a>
+    <a href="시안-C-집중.html">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8.8" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M8 5.8v3l1.9 1.1M6 1.4h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>집중</a>
+  </nav>
+</div>
+</body>
+</html>
