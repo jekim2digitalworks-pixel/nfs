@@ -7,39 +7,41 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **13 / 44 작업 완료 (30%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **14 / 44 작업 완료 (32%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** **Phase 1 진행 중** — 스캐폴딩 완료, 스키마 차례
+**지금 단계:** **Phase 1 진행 중** — 스키마까지 완료. 다음은 예산 계산기
 
-**최근 완료:** **O-02 스캐폴딩 ✅ · B-16 시간 유틸 ✅**
-`pnpm dev`가 실제로 뜨고 화면이 렌더된다. 빌드·린트·타입체크·테스트 전부 통과.
+**최근 완료:** **O-03 Prisma 스키마 ✅** (O-02 · B-16 에 이어)
+테이블 6종 + 제약·인덱스 전부 문서와 일치. 초기 마이그레이션 SQL 을 **DB 없이** 생성했다.
 
 **지금 코드가 어디까지 있나**
 ```
-apps/web              Next 16 부팅 확인 (임시 화면)
-packages/domain/time  ⭐ APP_ZONE · workDateOf · weekStartDateOf … (19 테스트 통과)
-packages/domain/types CategoryTag · BlockStatus · SourceType (Zod)
-packages/domain       errors.ts — 에러 코드 7종
-packages/db           빈 껍데기 (O-03 대기)
-eslint.config.mjs     ⭐ 시간·XSS·서버경계 방어 규칙 4종 (작동 확인)
+apps/web                    Next 16 부팅 확인 (임시 화면)
+apps/web/src/server         enum 정합성 테스트
+packages/domain/time        ⭐ APP_ZONE · workDate · weekStartDate · DATE 컬럼 변환 (29 테스트)
+packages/domain/types       CategoryTag · BlockStatus · SourceType · CompletionType (Zod)
+packages/domain/errors.ts   에러 코드 7종
+packages/db                 ⭐ schema.prisma (6 테이블) + 초기 마이그레이션 SQL
+eslint.config.mjs           시간·XSS·서버경계 방어 규칙 (작동 확인)
 ```
 
 **확인된 것 (실측)**
-- 프로세스 TZ를 **UTC · KST · New_York · Kiritimati(UTC+14)** 로 바꿔도 도메인 테스트 19건이 동일하게 통과 → **존이 코드에 박혀 있다**
-- 루트 레이아웃의 `dynamic = 'force-dynamic'` 없이는 화면이 `○ Static`으로 굳어 **빌드 시점 날짜가 박제된다** (재현 후 수정)
-- 버전 고정: Next **16.3.1** · React **19.2.8** · Prisma **7.9.1** · TS **5.9.3** (→ N-024)
+- 도메인 테스트 **29건**이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일하게 통과
+- enum 정합성 테스트가 **첫 실행에서 실제 불일치를 잡았다** — 도메인에 `CALENDAR_IMPORTED` 누락
+- `prisma migrate diff --from-empty` 로 **DB 계정 없이** 초기 SQL 생성. 적용만 남았다
+- Prisma 7은 문서 가정과 크게 달랐다 (`directUrl` 소멸 · 설정이 `prisma.config.ts` 로) → **N-025**
 
 **다음에 할 일 (순서대로):**
 
-1. **O-03 Prisma 스키마** — `02-데이터모델.md`의 테이블 6종을 `schema.prisma`로.
-   ⚠️ 마이그레이션 실행은 Q-011(Supabase) 필요. **스키마 작성 + `prisma generate`까지는 지금 가능**
-2. **B-05 예산 계산기** ⭐⭐ — `packages/domain/budget`. 순수 함수라 DB 없이 끝까지 간다. **테스트 먼저**
-3. **U-02 토큰 CSS + 루트 셸** — 확정 시안의 토큰을 `styles/tokens.css`로. 임시 화면 교체
-4. **O-04~O-06** 배포 파이프라인 — Q-011 답이 오면
+1. **B-05 예산 계산기** ⭐⭐ — `packages/domain/budget`. **이 프로젝트에서 가장 위험한 작업.**
+   순수 함수라 DB 없이 끝까지 간다. 테스트 먼저 (`테스트/01` §2·3)
+2. **B-04 블록 상태 전이** — `packages/domain/block`. 역시 순수 함수
+3. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체
+4. **O-04~O-06** 배포 — Q-011 답이 오면 (`pnpm db:migrate` 한 번이면 스키마가 올라간다)
 
 **블로커:** 없음
 **사용자 확인 대기:** Q-011(외부 계정·시크릿) · Q-010(평생 화면 기준 나이)
@@ -48,10 +50,12 @@ eslint.config.mjs     ⭐ 시간·XSS·서버경계 방어 규칙 4종 (작동 �
 **개발 명령**
 ```
 pnpm dev          개발 서버 (3000)
-pnpm build        프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
+pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지
+pnpm test         전 패키지 (33건)
+pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
+pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 ```
 
 ---
@@ -73,7 +77,7 @@ pnpm test         전 패키지
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
-| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 1 / 6 | 🟡 **지금 여기** |
+| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 2 / 6 | 🟡 **지금 여기** |
 | **2** | 핵심 도메인 · API | 2 / 9 | 🟡 |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
 | **4** | 화면 구현 | 1 / 9 | ⬜ |
@@ -108,7 +112,7 @@ pnpm test         전 패키지
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | O-02 | pnpm 모노레포 + Next.js + Prisma 스캐폴딩 | 개발 | `pnpm-workspace.yaml`, `apps/web/`, `packages/*`, `eslint.config.mjs` | — | ✅ |
-| O-03 | Prisma 스키마 6종 + 초기 마이그레이션 | 개발 | `packages/db/prisma/schema.prisma` | O-02, A-02 | ⬜ |
+| O-03 | Prisma 스키마 6종 + 초기 마이그레이션 SQL | 개발 | `packages/db/prisma/schema.prisma`, `prisma/migrations/…_init/` | O-02, A-02 | ✅ |
 | O-04 | Supabase 연결 (풀러/직결 분리 · 싱글턴) | 개발 | `src/server/prisma.ts`, `.env.example` | O-03, **Q-011** | ⛔ |
 | O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/http/**` | O-02 | ⬜ |
 | O-06 | Vercel 첫 배포 (빈 화면 + 헬스체크) | 개발 | `vercel.json`, 배포 URL | O-04, **Q-011** | ⛔ |

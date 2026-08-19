@@ -5,13 +5,14 @@
   "description": "NFS (Not For Sale) — 시간 가계부 + 마이크로 타임박싱",
   "scripts": {
     "dev": "pnpm --filter @nfs/web dev",
-    "build": "pnpm --filter @nfs/web build",
+    "build": "pnpm --filter @nfs/db generate && pnpm --filter @nfs/web build",
     "start": "pnpm --filter @nfs/web start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "db:generate": "pnpm --filter @nfs/db generate",
-    "db:migrate": "pnpm --filter @nfs/db migrate"
+    "db:migrate": "pnpm --filter @nfs/db migrate",
+    "postinstall": "pnpm --filter @nfs/db generate"
   },
   "engines": {
     "node": ">=20"

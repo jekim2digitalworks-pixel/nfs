@@ -10,3 +10,9 @@ export {
     minutesFromStartOfDay,
     totalMinutesPerDay,
 } from './zone';
+
+export {
+    dateStringToDateColumn,
+    dateColumnToDateString,
+    instantToDateColumn,
+} from './date-column';

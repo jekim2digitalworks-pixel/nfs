@@ -503,3 +503,84 @@ const { blockId } = await props.params;     // ⚠️ params 도 Promise 다
 > **문서를 기억으로 쓰면 틀린다.** Next 16이 `node_modules/next/dist/docs`에 자기 문서를 동봉하고
 > *"이건 네가 아는 Next가 아니다"* 라고 경고하는 것도 같은 이유다.
 > **앞으로 프레임워크 API를 문서에 적기 전에 동봉 문서를 먼저 읽는다.**
+
+---
+
+### N-025 · Prisma 7 실측 정정 — 설정이 스키마 밖으로 나갔다 ⭐
+📅 2026-08-19 · 개발
+
+O-03에서 Prisma 7.9.1을 실제로 돌려보니 **아키텍처 v3.0 §7의 `datasource` 예시가 통째로 틀렸다.**
+N-024와 같은 종류의 사고이므로 같은 방식으로 정정한다.
+
+#### 무엇이 바뀌었나
+
+| 항목 | Prisma 5·6 (문서에 쓴 것) | **Prisma 7 (실제)** |
+|---|---|---|
+| generator | `prisma-client-js` | **`prisma-client`** + `output` 필수 |
+| 생성물 | 컴파일된 JS | **TypeScript 소스** |
+| DB URL | `datasource { url = env(...) }` | **`prisma.config.ts`** 의 `datasource.url` |
+| `directUrl` | `datasource.directUrl` | ⛔ **없어졌다** |
+| 섀도 DB | `shadowDatabaseUrl` in schema | `prisma.config.ts` 의 `datasource.shadowDatabaseUrl` |
+| 런타임 커넥션 | 스키마의 url 사용 | **드라이버 어댑터를 앱이 직접 넘긴다** |
+| `migrate dev` | generate 자동 실행 | **자동 실행 안 함.** 따로 부른다 |
+
+```prisma
+// Prisma 7 — datasource 에 url 이 없다
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+```
+
+```ts
+// 런타임은 어댑터로 커넥션을 받는다
+new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })
+```
+
+#### `directUrl` 소멸이 오히려 설계를 선명하게 했다
+
+Prisma 7에서 `prisma.config.ts` 의 `datasource` 는 **CLI 전용**이다 — migrate · db pull · studio 만 쓴다.
+런타임은 앱이 어댑터로 직접 연결한다. 그래서 URL 이 자연스럽게 둘로 갈린다.
+
+| 용도 | 값 | 어디서 읽나 |
+|---|---|---|
+| 마이그레이션 | `DIRECT_URL` (5432 직결) | `packages/db/prisma.config.ts` |
+| 런타임 | `DATABASE_URL` (6543 풀러 + `connection_limit=1`) | `apps/web/src/server/prisma.ts` (O-04) |
+
+예전에는 한 `datasource` 블록에 두 URL 을 밀어 넣고 Prisma 가 알아서 고르길 기대했다.
+지금은 **누가 어떤 커넥션을 쓰는지가 파일 위치로 드러난다.**
+
+#### 부수 결정
+
+- **생성물(`packages/db/generated/`)은 커밋하지 않는다.** 스키마에서 다시 만들면 되는 산출물이고, 커밋하면 스키마와 어긋난 채 굳는다. 대신 루트 `postinstall` 이 `prisma generate` 를 돌려 클론 직후에도 타입이 맞는다
+- **초기 마이그레이션 SQL 은 DB 없이 만들었다** — `prisma migrate diff --from-empty --to-schema … --script`. Q-011(Supabase 계정)이 없어도 O-03을 끝까지 마칠 수 있었다. 적용만 남는다
+- **`DATETIME` → `timestamptz(0)`** 로 올린다. 문서의 MySQL `DATETIME` 은 존이 없었다. 운영이 UTC 인 지금 "절대 시각"임을 타입이 말해주는 편이 안전하다
+- **enum 은 Postgres 네이티브로.** 단 `exclusion_reason` 만 `varchar` — 필터 사유는 운영하면서 늘어나는데, enum 이면 하나 추가할 때마다 마이그레이션이 필요하다
+
+#### enum 정합성 테스트를 추가했다 (그리고 즉시 버그를 잡았다)
+
+같은 값 목록이 `packages/domain/types` 와 `schema.prisma` 두 곳에 산다.
+Postgres 네이티브 enum 이라 **어긋나면 운영의 INSERT 에서 처음 터진다.**
+
+`apps/web/src/server/enum-parity.test.ts` 를 추가했더니 **첫 실행에서 실제 불일치를 잡았다** —
+도메인 `COMPLETION_TYPES` 에 `CALENDAR_IMPORTED`(주간 마감 이관)가 빠져 있었다.
+문서에도 스키마에도 있는 값인데 도메인만 4종이었다.
+
+> 값 목록이 두 곳에 사는 걸 없앨 수는 없다(도메인은 DB 를 import 하면 안 되므로).
+> **없앨 수 없는 중복은 테스트로 묶어둔다.**
+
+#### DATE 컬럼 변환 규약 ⭐
+
+`work_date` · `stat_date` · `week_start_date` 는 도메인에서 `'yyyy-MM-dd'` 문자열이지만
+드라이버를 거치면 **JS `Date`** 가 된다. 여기가 하루 밀리는 자리다.
+
+```
+'2026-08-19' 를 한국 시간 0시로 만들면 → UTC 2026-08-18T15:00 → DATE 컬럼에서 8월 18일로 잘린다
+```
+
+**규약: DATE 컬럼은 "그 날짜의 UTC 자정"으로만 표현한다.** 타임존 변환을 하지 않는다 —
+애초에 시각이 아니라 달력 위의 한 칸이기 때문이다.
+`packages/domain/time/date-column.ts` 가 이 변환의 유일한 출구이며, 잘못된 방식까지 테스트로 박아뒀다.

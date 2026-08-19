@@ -19,8 +19,11 @@ export type BlockStatus = z.infer<typeof BlockStatusSchema>;
 export const COMPLETION_TYPES = [
     'NORMAL_COMPLETED',
     'EARLY_FINISHED',
+    /// 자정 배치가 강제 정산 — **신뢰도 낮은 데이터로 구분한다**
     'AUTO_SETTLED',
     'ABANDONED',
+    /// 주간 마감 시 구글 캘린더에서 이관된 행
+    'CALENDAR_IMPORTED',
 ] as const;
 export const CompletionTypeSchema = z.enum(COMPLETION_TYPES);
 export type CompletionType = z.infer<typeof CompletionTypeSchema>;
