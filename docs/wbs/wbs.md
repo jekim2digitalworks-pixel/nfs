@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **21 / 44 작업 완료 (48%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **22 / 44 작업 완료 (50%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -48,8 +48,7 @@ GOOGLE_CLIENT_ID  GOOGLE_CLIENT_SECRET  SESSION_SECRET  CRON_SECRET
 
 **다음에 할 일 (순서대로):**
 
-1. **B-07 통계 집계** — 리포트 화면이 쓸 데이터. `groupBy` + 월별은 `$queryRaw`(Postgres 방언 주의)
-2. **U-03 리포트 화면** (시안 A → JSX) — 이제 붙일 데이터가 생긴다
+1. **U-03 리포트 화면** (시안 A → JSX) — 붙일 데이터가 준비됐다. 서버 컴포넌트가 서비스를 직접 부른다
 3. **B-06 이관 트랜잭션** ⭐⭐ — 도메인은 끝났고 DB 쓰기만 남았다. 멱등성이 핵심
 4. **O-07 GitHub Actions 크론**
 
@@ -64,7 +63,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (141건)
+pnpm test         전 패키지 (158건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
 pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 ```
@@ -89,7 +88,7 @@ pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
-| **2** | 핵심 도메인 · API | 5 / 9 | 🟡 **지금 여기** |
+| **2** | 핵심 도메인 · API | 6 / 9 | 🟡 **지금 여기** |
 | **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
 | **4** | 화면 구현 | 2 / 9 | 🟡 |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
@@ -143,7 +142,7 @@ pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 | B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**` (41 테스트). 서비스 계층은 O-05 이후 | B-16, O-03 | ✅ |
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
 | B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/**`, `server/auth/**` (18 테스트) | O-05 | ✅ |
-| B-07 | 통계 집계 (일/주/월/년) | 개발 | `src/server/services/statistics.ts` | O-03 | ⬜ |
+| B-07 | 통계 집계 (일/주/월/년) | 개발 | `packages/domain/statistics/**` (17) · `server/services/statistics.ts` · `api/statistics/**` | O-03 | ✅ |
 | B-08 | 자정 정산 배치 엔드포인트 | 개발 | `app/api/jobs/daily-settlement/route.ts` | B-06, O-07 | ⬜ |
 | B-09 | 주간 마감 배치 엔드포인트 (월 04:00 KST) | 개발 | `app/api/jobs/weekly-closing/route.ts` | B-06, O-07 | ⬜ |
 | B-14 | API 명세 확정 + Route Handler 골격 | 개발 | `docs/개발/03-API명세.md`, `app/api/**` | O-05 | 🟡 |
