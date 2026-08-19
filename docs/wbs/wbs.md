@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **22 / 44 작업 완료 (50%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **23 / 44 작업 완료 (52%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -48,7 +48,7 @@ GOOGLE_CLIENT_ID  GOOGLE_CLIENT_SECRET  SESSION_SECRET  CRON_SECRET
 
 **다음에 할 일 (순서대로):**
 
-1. **U-03 리포트 화면** (시안 A → JSX) — 붙일 데이터가 준비됐다. 서버 컴포넌트가 서비스를 직접 부른다
+1. **B-06 이관 트랜잭션** ⭐⭐ — 도메인은 끝났고 DB 쓰기만 남았다. 멱등성이 핵심 (테스트계획 #15~20)
 3. **B-06 이관 트랜잭션** ⭐⭐ — 도메인은 끝났고 DB 쓰기만 남았다. 멱등성이 핵심
 4. **O-07 GitHub Actions 크론**
 
@@ -90,7 +90,7 @@ pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
 | **2** | 핵심 도메인 · API | 6 / 9 | 🟡 **지금 여기** |
 | **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
-| **4** | 화면 구현 | 2 / 9 | 🟡 |
+| **4** | 화면 구현 | 3 / 9 | 🟡 |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
 | **6** | 품질 · 운영 | 1 / 4 | ⬜ |
 
@@ -171,7 +171,7 @@ pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 |---|---|---|---|---|---|
 | U-01 | 퍼블리싱 가이드 (**v2.0** — Next.js) | 퍼블 | `docs/퍼블/01-퍼블리싱가이드.md` | D-01 | ✅ |
 | U-02 | 토큰 CSS + 루트 셸 + 하단 탭 | 퍼블 | `src/styles/*.css`, `app/layout.tsx`, `components/layout/FloatingTabs` | U-01 | ✅ |
-| U-03 | 리포트 화면 (시안 A → JSX) | 퍼블 | `app/page.tsx` | U-02, D-02 | ⬜ |
+| U-03 | 리포트 화면 (시안 A → JSX) | 퍼블 | `app/page.tsx`, `components/{chart,report}/**`, `lib/format.ts` | U-02, D-02 | ✅ |
 | U-04 | 하루 화면 (시안 B → JSX) | 퍼블 | `app/day/page.tsx` | U-02, D-02 | ⬜ |
 | U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` | U-02, D-02 | ⬜ |
 | U-06 | 블록 생성 시트 | 퍼블 | `components/block/BlockSheet.tsx` | D-04 | ⬜ |

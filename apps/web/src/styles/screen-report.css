@@ -1,0 +1,268 @@
+/**
+ * S-02 리포트 화면 전용.
+ * 확정 시안 A 에서 옮겼다. 값은 시안 그대로이고, 색은 전부 토큰이다.
+ */
+
+.screen-report .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 22px;
+}
+
+/* ── 히어로 ─────────────────────────────── */
+.screen-report .hero {
+    padding-top: 26px;
+}
+.screen-report .hero-cap {
+    font-size: 13.5px;
+    color: var(--tx2);
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+}
+.screen-report .hero-num {
+    margin: 0;
+    font-size: var(--t-hero);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 0.95;
+}
+.screen-report .hero-num em {
+    font-size: 26px;
+    margin: 0 10px 0 3px;
+    letter-spacing: -0.02em;
+}
+
+/* ── 기간 세그먼트 ──────────────────────── */
+.seg {
+    display: flex;
+    margin-top: 24px;
+    padding: 3px;
+    background: var(--s1);
+    border: 1px solid var(--hair-2);
+    border-radius: var(--r-pill);
+}
+.seg a {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    height: 34px;
+    border-radius: var(--r-pill);
+    color: var(--tx2);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    transition: color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.seg a[aria-current='page'] {
+    background: var(--s2);
+    color: var(--tx);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.09) inset;
+}
+
+/* ── 링 ─────────────────────────────────── */
+.ring-wrap {
+    display: grid;
+    place-items: center;
+    margin: 14px auto 0;
+    width: 236px;
+    height: 236px;
+    position: relative;
+}
+.ring-wrap svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 22px rgba(124, 140, 255, 0.22));
+}
+.ring-mid {
+    text-align: center;
+}
+.ring-mid b {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tx3);
+    letter-spacing: 0.01em;
+}
+.ring-mid s {
+    display: block;
+    text-decoration: none;
+    font-size: var(--t-ring);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    margin-top: 5px;
+}
+.ring-mid u {
+    display: block;
+    text-decoration: none;
+    font-size: 12.5px;
+    color: var(--tx2);
+    margin-top: 5px;
+}
+
+/* ── 태그 목록 ──────────────────────────── */
+.list {
+    margin: 22px calc(var(--pad-card) - var(--pad-screen)) 0;
+    padding: 6px;
+    background: var(--s1);
+    border: 1px solid var(--hair-2);
+    border-radius: var(--r-xl);
+}
+.row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 13px;
+    padding: 13px 14px;
+    border-radius: var(--r-lg);
+}
+.row + .row {
+    box-shadow: 0 -1px 0 var(--hair-2);
+}
+.row .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--r-pill);
+    background: var(--c);
+    color: var(--c);
+    /* currentColor 로 발광시켜 색을 한 번만 지정한다 */
+    box-shadow: 0 0 11px currentColor;
+}
+.row-name {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+}
+.row-sub {
+    font-size: 12px;
+    color: var(--tx3);
+    margin-top: 3px;
+    letter-spacing: -0.005em;
+}
+.track {
+    height: 3px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.07);
+    margin-top: 7px;
+    overflow: hidden;
+}
+.track i {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: var(--c);
+}
+.row-val {
+    text-align: right;
+}
+.row-val b {
+    display: block;
+    font-size: var(--t-value);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+.row-val s {
+    display: block;
+    text-decoration: none;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+    margin-top: 3px;
+}
+
+/* ── 월별 스트립 ────────────────────────── */
+.strip {
+    margin-top: 22px;
+}
+.strip-h {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 13px;
+}
+.strip-h span {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.strip-h em {
+    font-style: normal;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+}
+.bars {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 5px;
+    align-items: end;
+    height: 62px;
+}
+.bars i {
+    display: block;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.11);
+}
+.bars i.on {
+    background: linear-gradient(180deg, var(--dev), rgba(124, 140, 255, 0.35));
+    box-shadow: 0 0 14px rgba(124, 140, 255, 0.5);
+}
+.bars-x {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 5px;
+    margin-top: 8px;
+    font-size: var(--t-micro);
+    color: var(--tx3);
+    text-align: center;
+}
+.bars-x b {
+    font-weight: 600;
+    color: var(--tx2);
+}
+
+/* ── 빈 상태 ────────────────────────────── */
+.empty {
+    margin-top: 40px;
+    text-align: center;
+}
+.empty h2 {
+    font-size: var(--t-title);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    margin: 0 0 10px;
+}
+.empty p {
+    margin: 0 0 6px;
+    color: var(--tx2);
+    font-size: var(--t-body);
+    line-height: 1.65;
+}
+
+/* ── 진입 모션 (스태거) ─────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+    .screen-report .hero,
+    .screen-report .seg,
+    .screen-report .ring-wrap,
+    .screen-report .list,
+    .screen-report .strip {
+        animation: report-up 0.62s var(--ease) both;
+    }
+    .screen-report .seg { animation-delay: 0.05s; }
+    .screen-report .ring-wrap { animation-delay: 0.09s; }
+    .screen-report .list { animation-delay: 0.14s; }
+    .screen-report .strip { animation-delay: 0.19s; }
+
+    @keyframes report-up {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: none; }
+    }
+
+    /* 아크가 그려지는 모션. 값이 큰 것부터 차례로 채워진다 */
+    .seg-arc {
+        animation: ring-sweep 1s var(--ease) both 0.2s;
+    }
+    @keyframes ring-sweep {
+        from { stroke-dashoffset: 0; opacity: 0; }
+    }
+}
