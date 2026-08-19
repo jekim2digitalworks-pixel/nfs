@@ -4,6 +4,8 @@ node_modules/
 *.tsbuildinfo
 
 # ── Next.js ────────────────────────────────────
+# next dev 와 next build 가 서로 다른 경로로 덮어써 계속 바뀐다. Next 가 자동 생성한다
+next-env.d.ts
 .next/
 out/
 build/
