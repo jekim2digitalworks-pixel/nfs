@@ -32,6 +32,11 @@ function queryWindowOf(workDate: string): { from: Date; to: Date } {
 export interface DayOccupantsOptions {
     /** 이관 중인 블록은 제외한다. 정산된 구간으로 따로 넣기 때문이다 */
     excludeActiveBlockId?: bigint;
+    /**
+     * 마감 중인 캘린더 일정은 제외한다 (B-09).
+     * 자기 자신이 점유자 목록에 남아 있으면 **자기와 겹쳤다고 계산해** 전부 깎인다.
+     */
+    excludeCalendarEventId?: string;
 }
 
 export async function loadDayOccupants(
@@ -113,6 +118,9 @@ export async function loadDayOccupants(
     }
 
     for (const event of calendarEvents) {
+        if (options.excludeCalendarEventId === event.googleEventId) {
+            continue;
+        }
         occupants.push({
             referenceKey: `calendar:${event.googleEventId}`,
             sourceType: 'GOOGLE_CALENDAR',

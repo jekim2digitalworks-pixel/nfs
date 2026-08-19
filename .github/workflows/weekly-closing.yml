@@ -1,0 +1,82 @@
+# 주간 마감 배치 (O-07 · B-09)
+#
+# ⚠️⚠️ **크론의 요일이 KST 와 다르다.**
+#      KST 월요일 04:00 = UTC 일요일 19:00 → '0 19 * * 0'  (0 = 일요일)
+#      '0 19 * * 1' 로 적으면 마감이 하루 늦게 돈다. 이 프로젝트에서 가장 밟기 쉬운 함정이다.
+#
+#      자정 정산   KST 매일 00:05    →  '5 15 * * *'   (daily-settlement.yml)
+#      주간 마감   KST 월요일 04:00  →  '0 19 * * 0'   ← 여기
+#
+# 마감은 되돌릴 수 없다(재개봉 없음 · 정책 §3.3). 그래서 엔드포인트가 "지난주"가 아니라
+# **마감 기한(월 04:00)을 넘겼는가**로 판정한다. 배치가 밀려 화요일에 돌아도 결과가 같다.
+
+name: weekly-closing
+
+on:
+  schedule:
+    - cron: '0 19 * * 0' # UTC 일요일 19:00 = KST 월요일 04:00
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-closing
+  cancel-in-progress: false
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 주간 마감 호출
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APP_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "APP_URL 또는 CRON_SECRET 시크릿이 설정되지 않았습니다"
+            exit 1
+          fi
+
+          MAX_CALLS=20
+          CALL=1
+          FAILURE_SEEN=0
+
+          while [ "${CALL}" -le "${MAX_CALLS}" ]; do
+            echo "--- 호출 ${CALL}/${MAX_CALLS}"
+
+            HTTP_STATUS=$(curl --silent --show-error \
+              --request POST \
+              --header "x-cron-secret: ${CRON_SECRET}" \
+              --max-time 120 \
+              --output response.json \
+              --write-out '%{http_code}' \
+              "${APP_URL}/api/jobs/weekly-closing")
+
+            cat response.json
+            echo
+
+            # 404 = 시크릿 불일치 또는 서버에 CRON_SECRET 미설정 (엔드포인트 존재를 숨긴다)
+            if [ "${HTTP_STATUS}" != "200" ]; then
+              echo "마감 호출 실패: HTTP ${HTTP_STATUS}"
+              exit 1
+            fi
+
+            # 빈 배열은 `[]`. 여는 대괄호 뒤에 ] 가 아닌 문자가 오면 실패가 담긴 것이다
+            if grep -q '"failedMemberIds":\[[^]]' response.json; then
+              FAILURE_SEEN=1
+            fi
+
+            if ! grep -q '"hasMore":true' response.json; then
+              echo "남은 대상 없음. 종료"
+              break
+            fi
+
+            CALL=$((CALL + 1))
+          done
+
+          if [ "${FAILURE_SEEN}" = "1" ]; then
+            echo "일부 회원 마감 실패 — Vercel 로그 확인 필요"
+            exit 1
+          fi

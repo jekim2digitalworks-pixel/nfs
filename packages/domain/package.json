@@ -9,7 +9,8 @@
     "./time": "./src/time/index.ts",
     "./types": "./src/types/index.ts",
     "./budget": "./src/budget/index.ts",
-    "./block": "./src/block/index.ts"
+    "./block": "./src/block/index.ts",
+    "./closing": "./src/closing/index.ts"
   },
   "scripts": {
     "test": "vitest run",

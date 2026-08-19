@@ -171,12 +171,28 @@ NFS 쪽 플래그만 바꾼다. **구글 원본은 건드리지 않는다.**
 ⚠️ 주간 마감이 크론에서 **일요일(`0`)** 인 이유: KST 월요일 04:00 = UTC 일요일 19:00. 요일까지 밀린다.
 
 ```json
-// 응답 — 무엇을 했고 무엇이 남았는지 반드시 내린다
+// 자정 정산 응답 — 무엇을 했고 무엇이 남았는지 반드시 내린다 (B-08 구현 확정)
 { "success": true, "data": {
-    "processedMemberCount": 128, "settledBlockCount": 341,
-    "failedMemberIds": [ 5501 ],
+    "processedMemberCount": 128, "settledBlockCount": 341, "skippedBlockCount": 12,
+    "failedMemberIds": [ "5501" ], "failedBlockIds": [ "88214" ],
     "hasMore": false } }
+
+// 주간 마감 응답 (B-09 구현 확정)
+{ "success": true, "data": {
+    "processedMemberCount": 128, "closedWeekCount": 131,
+    "importedEventCount": 806, "skippedEventCount": 47,
+    "failedMemberIds": [], "hasMore": false } }
 ```
+
+> `closedWeekCount` 가 `processedMemberCount` 보다 클 수 있다 — 밀린 주를 한 회원이 여러 개 닫는다.
+> `skippedEventCount` 는 겹침으로 0분이 되어 원장에 넣지 않은 일정 수다.
+
+**대상 선정 (N-031 · N-032)** — 배치는 "어제/지난주 하나"가 아니라 **밀린 것 전부**를 걷어간다.
+
+| 배치 | 대상 | 상한 |
+|---|---|---|
+| 자정 정산 | `work_date < 오늘(KST)` 인 모든 블록 | (회원 × 날짜) 200쌍 |
+| 주간 마감 | `week_start_date < 이번 주` **그리고** 기한(월 04:00) 초과 | (회원 × 주) 100쌍 |
 
 - **`hasMore: true`면 워크플로가 다시 호출한다.** 함수 실행시간 상한 때문에 한 번에 다 못 돌 수 있다
 - 배치는 **멱등하다.** 겹쳐 호출돼도 `TimeLog` UNIQUE가 중복을 막는다
