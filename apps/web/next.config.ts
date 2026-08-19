@@ -1,4 +1,18 @@
+import { config as loadEnvFile } from 'dotenv';
 import type { NextConfig } from 'next';
+
+/**
+ * 환경변수는 **저장소 루트의 .env.local** 한 곳에만 둔다.
+ *
+ * Next.js 는 자기 프로젝트 폴더(apps/web)의 .env.local 만 자동으로 읽는다.
+ * 모노레포에서 그대로 두면 앱용·Prisma용 .env 가 두 벌이 되고, 언젠가 한쪽만 고쳐진다.
+ * (단일 프로젝트인 Vite 등에서는 루트가 곧 프로젝트라 이 문제가 없다)
+ *
+ * next.config 는 dev·build 시작 시 가장 먼저 평가되므로 여기서 읽으면
+ * 서버 컴포넌트와 Route Handler 모두 process.env 로 값을 본다.
+ * override:false — Vercel 이 주입한 실제 환경변수를 덮어쓰지 않는다.
+ */
+loadEnvFile({ path: '../../.env.local', override: false, quiet: true });
 
 const nextConfig: NextConfig = {
     // 워크스페이스 패키지는 빌드 산출물이 아니라 TypeScript 소스를 그대로 내보낸다.

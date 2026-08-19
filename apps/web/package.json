@@ -25,6 +25,7 @@
     "@types/react-dom": "^19",
     "typescript": "^5",
     "@types/luxon": "^3.7.1",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "dotenv": "^17.2.4"
   }
 }
