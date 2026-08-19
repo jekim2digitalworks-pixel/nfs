@@ -13,6 +13,7 @@ import {
     dateStringToDateColumn,
     instantFromColumn,
     instantToColumn,
+    workDateOf,
 } from '@nfs/domain/time';
 import { prisma } from '../prisma';
 import { loadDayOccupants } from './day-occupants';
@@ -232,5 +233,100 @@ export async function settleAllBlocksOfDate(
         settledCount: settledCount,
         skippedCount: skippedCount,
         failedBlockIds: failedBlockIds,
+    };
+}
+
+/**
+ * 자정 정산 배치 (B-08 · API명세 §6)
+ *
+ * 처리 대상은 **"오늘(KST)보다 이전 work_date 를 가진 모든 블록"** 이다.
+ * "어제 것만" 이 아닌 이유:
+ *   배치가 하루 걸렀거나(액션 장애·레포 비활성) 배포가 끊겼던 날이 있으면
+ *   그날 블록이 `ActiveBlock` 에 영원히 남는다. 다음 배치가 밀린 날까지 걷어간다.
+ *   오늘 것은 절대 건드리지 않는다 — 지금 돌고 있는 블록을 죽이는 일이 된다.
+ *
+ * ⭐ 대상을 (회원 × 날짜) 쌍으로 잘라 뽑는 이유:
+ *   함수 실행시간 상한(60초)이 있다. 한 번에 다 못 돌면 `hasMore: true` 로 내리고
+ *   워크플로가 다시 부른다. 배치가 멱등하므로 다시 불러도 안전하다.
+ *
+ * ⚠️ `now` 를 그대로 넘겨도 원장이 부풀지 않는다 —
+ *    종료 시각은 `실제 시작 + 계획 길이` 로, 집중 분은 구간 길이로 도메인이 캡한다.
+ *    (packages/domain/src/block/settlement.ts 의 상한 두 개)
+ */
+export interface DailySettlementSummary {
+    /** 이번 호출에서 정산을 시도한 회원 수 (같은 회원의 여러 날짜는 1명으로 센다) */
+    processedMemberCount: number;
+    settledBlockCount: number;
+    skippedBlockCount: number;
+    /** 회원 단위로 통째로 실패한 경우. 한 명이 막혀도 나머지는 계속 돈다 */
+    failedMemberIds: string[];
+    /** 블록 단위 실패. 회원은 돌았지만 그 블록만 못 넘어간 것들 */
+    failedBlockIds: string[];
+    /** true 면 워크플로가 한 번 더 호출한다 (API명세 §6) */
+    hasMore: boolean;
+}
+
+/** 한 번의 호출에서 처리할 (회원 × 날짜) 쌍의 최대 개수. 60초 상한 안에 들어갈 크기 */
+const SETTLEMENT_TARGET_LIMIT = 200;
+
+export async function runDailySettlement(now: DateTime): Promise<DailySettlementSummary> {
+    const todayColumn = dateStringToDateColumn(workDateOf(now));
+
+    // 상한 + 1 개를 뽑아 "더 남았는가"를 한 번의 질의로 판단한다.
+    // count 를 따로 세면 두 질의 사이에 대상이 바뀔 수 있다.
+    const targets = await prisma.activeBlock.groupBy({
+        by: ['memberId', 'workDate'],
+        where: { workDate: { lt: todayColumn } },
+        orderBy: [{ workDate: 'asc' }, { memberId: 'asc' }],
+        take: SETTLEMENT_TARGET_LIMIT + 1,
+    });
+
+    let hasMore = false;
+    let processableTargets = targets;
+
+    if (targets.length > SETTLEMENT_TARGET_LIMIT) {
+        hasMore = true;
+        processableTargets = targets.slice(0, SETTLEMENT_TARGET_LIMIT);
+    }
+
+    const processedMemberIds = new Set<string>();
+    const failedMemberIds: string[] = [];
+    const failedBlockIds: string[] = [];
+    let settledBlockCount = 0;
+    let skippedBlockCount = 0;
+
+    for (const target of processableTargets) {
+        const memberIdText = target.memberId.toString();
+        processedMemberIds.add(memberIdText);
+
+        try {
+            const result = await settleAllBlocksOfDate(
+                target.memberId,
+                dateColumnToDateString(target.workDate),
+                now,
+                'MIDNIGHT_BATCH',
+            );
+
+            settledBlockCount = settledBlockCount + result.settledCount;
+            skippedBlockCount = skippedBlockCount + result.skippedCount;
+
+            for (const failedBlockId of result.failedBlockIds) {
+                failedBlockIds.push(failedBlockId);
+            }
+        } catch (caught) {
+            // 여기까지 왔다는 건 회원 단위 질의 자체가 실패했다는 뜻이다(커넥션·타임아웃).
+            // 다음 회원으로 넘어간다. 남은 블록은 다음 배치가 다시 집는다.
+            console.error('[nfs] daily settlement failed for member', memberIdText, caught);
+            failedMemberIds.push(memberIdText);
+        }
+    }
+
+    return {
+        processedMemberCount: processedMemberIds.size,
+        settledBlockCount: settledBlockCount,
+        skippedBlockCount: skippedBlockCount,
+        failedMemberIds: failedMemberIds,
+        failedBlockIds: failedBlockIds,
+        hasMore: hasMore,
     };
 }

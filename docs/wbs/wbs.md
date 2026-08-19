@@ -5,17 +5,17 @@
 
 | | |
 |---|---|
-| 최종 갱신 | **2026-08-19** (세션 종료 시점) |
+| 최종 갱신 | **2026-08-20** (세션 종료 시점) |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **26 / 44 작업 완료 (59%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **27 / 44 작업 완료 (61%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** **Phase 2 거의 끝 · Phase 4 진행 중** — 배치만 남기고 핵심 흐름이 다 돌아간다
+**지금 단계:** **Phase 2 거의 끝 · Phase 4 진행 중** — 자정 정산이 붙었다. 남은 배치는 주간 마감뿐
 
-**마지막 커밋:** `c470005` feat(U-04) · 2026-08-19
+**마지막 커밋:** `f88a719` chore(next-env) · 2026-08-19 → **이 세션에서 B-08 커밋 예정**
 
 ---
 
@@ -25,6 +25,7 @@
 로그인      구글 OAuth → HMAC 세션 쿠키 → 회원 생성/갱신 (실제 로그인 성공 확인)
 블록        생성 → 시작/정지/재개 → 완료(정산) 전 구간 API 동작
 정산        ActiveBlock → TimeLog. 멱등성·겹침차감 실DB 검증 완료
+자정 배치   POST /api/jobs/daily-settlement — 어제 이전 블록 전부 정산. 실DB 검증 완료
 통계        기간별 집계 · 태그별 · 월별 추이. 실DB 숫자 대조 완료
 화면        리포트(링·목록·월별) · 하루(예산미터·타임라인) 렌더 확인
 ```
@@ -48,7 +49,7 @@ apps/web/src/
   server/auth/                세션(HMAC) · 구글 OAuth · 토큰 암호화(AES-GCM)
   server/http/                응답 봉투 · 에러 매핑 · withMember/withCronSecret
   server/services/            member · statistics · block · settlement · day-occupants
-  app/api/                    health · me · auth/* · blocks/* · statistics/*
+  app/api/                    health · me · auth/* · blocks/* · statistics/* · jobs/daily-settlement
   app/page.tsx                S-02 리포트  ✅
   app/day/page.tsx            S-03 하루    ✅
   app/focus/page.tsx          S-04 집중    ⬜ 껍데기
@@ -56,39 +57,45 @@ apps/web/src/
   styles/                     tokens · base · components · screen-report · screen-day
 ```
 
-### 🔜 내일 할 일 (순서대로)
+### ✅ 이 세션에서 한 것 (2026-08-20) — O-07(부분) · B-08
 
-**1. O-07 크론 + B-08 자정 정산** ← 여기서 시작
+- `app/api/jobs/daily-settlement/route.ts` — `withCronSecret` + `maxDuration = 60`, **POST 만** (GET 은 405)
+- `services/settlement.ts` 에 `runDailySettlement(now)` 추가 — (회원 × work_date) 쌍을 `groupBy` 로 뽑아 순회
+- `.github/workflows/daily-settlement.yml` — `5 15 * * *`(= KST 00:05) + `workflow_dispatch` + `hasMore` 재호출 루프
+- 대상은 **"어제"가 아니라 `work_date < 오늘(KST)` 전부** → 크론을 한 번 걸러도 따라잡는다 (**N-031**)
+- 실DB 검증: 밤샘 60분 블록 → `AUTO_SETTLED` 22:00~23:00 집중 60분 / 오늘 블록은 그대로 / 재호출 0건 / 시크릿 없으면 404
+  (검증용 행은 전부 삭제했다)
 
-지금 밤에 켜둔 블록을 닫아줄 게 없다. 실제로 쓰면 `ActiveBlock` 이 계속 쌓인다.
+### 🔜 다음에 할 일 (순서대로)
 
-- `app/api/jobs/daily-settlement/route.ts` — `withCronSecret` 은 이미 있다(O-05)
-- 서비스도 이미 있다: `settleAllBlocksOfDate(memberId, workDate, now, 'MIDNIGHT_BATCH')`
-- 회원 단위로 순회 · 한 명 실패가 전체를 막지 않는다 · 응답에 `hasMore`
-- `export const maxDuration = 60`
-- `.github/workflows/daily-settlement.yml`
+**0. 배포 + GitHub 시크릿 등록** ← 이걸 해야 크론이 실제로 돈다
 
-⚠️ **크론은 UTC다. KST 환산 주석을 반드시 병기한다.**
-```
-자정 정산  KST 00:05    →  cron: '5 15 * * *'
-주간 마감  KST 월 04:00 →  cron: '0 19 * * 0'   ← 일요일! 요일까지 밀린다
-```
-`workflow_dispatch` 를 넣고 **손으로 한 번 돌려서 확인한다.** 크론을 하루 기다리지 않는다.
+크론 워크플로는 만들었지만 **아직 한 번도 실제로 돌지 않았다.** 로컬 dev 로만 검증했다.
 
-**2. U-06 블록 생성 시트** — 지금 하루 화면의 FAB 이 자리만 잡고 있다 (D-04 시안 먼저)
+1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08 만큼 뒤처져 있다
+2. Vercel 프로젝트 환경변수에 `CRON_SECRET` 확인
+3. GitHub 레포 Settings → Secrets → `APP_URL`(끝에 `/` 없이), `CRON_SECRET`
+4. Actions 탭에서 **daily-settlement 를 손으로 한 번 돌린다** (`workflow_dispatch`). 크론을 하루 기다리지 않는다
 
-**3. B-09 주간 마감** · **F-01 타이머** · **U-05 집중 화면**
+**1. U-06 블록 생성 시트** — 지금 하루 화면의 FAB 이 자리만 잡고 있다 (D-04 시안 먼저)
+
+**2. B-09 주간 마감** — 엔드포인트와 워크플로를 같이 만든다. 크론은 **`0 19 * * 0`(일요일!)** = KST 월 04:00.
+   자정 정산 워크플로를 그대로 복사해 경로만 바꾸면 된다
+
+**3. F-01 타이머** · **U-05 집중 화면**
 
 ### ⚠️ 알아둘 것
 
 | 항목 | 상태 |
 |---|---|
-| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04 가 안 올라갔다. `npx vercel --prod --yes` 한 번이면 된다 |
+| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08** 이 안 올라갔다. `npx vercel --prod --yes` 한 번이면 된다 |
+| **크론이 아직 안 돈다** | 워크플로는 만들었지만 GitHub 시크릿(`APP_URL`·`CRON_SECRET`) 미등록 + 배포 전이다. 등록 후 `workflow_dispatch` 로 한 번 돌려볼 것 |
+| GitHub Actions 크론의 함정 | 60일간 커밋이 없으면 스케줄이 **비활성화된다.** 오래 쉬었다 돌아오면 Actions 탭에서 다시 켠다 |
 | Vercel 접속 | 2026-08-19 저녁 기준 이 PC 에서 `vercel.com` SSL 연결 실패(curl 35). github 는 정상 — 일시적 네트워크로 보인다 |
 | Git 푸시는 Preview 만 만든다 | 프로덕션 배포는 **CLI 로 한다** (N-029) |
 | 커밋 작성자 | 저장소 로컬 설정 `you4ranghe@gmail.com` — Vercel 프로젝트 소유 계정과 맞춰둔 것이다. 바꾸면 배포가 차단된다 |
 | DB | member 1행 외 전부 비어 있다 (검증 데이터 정리 완료) |
-| `CRON_SECRET` | 작업 중 대화창에 노출됐다. 아직 아무 데도 안 쓰이지만 **O-07 착수 전에 갈아두는 게 좋다** (로컬 `.env.local` + Vercel 양쪽) |
+| `CRON_SECRET` | 작업 중 대화창에 노출된 적이 있다. **이제 실제로 쓰인다** — 갈 거면 로컬 `.env.local` · Vercel · GitHub 시크릿 **세 곳**을 같이 바꾼다 |
 | 구글 테스트 모드 | 리프레시 토큰이 **7일 만료** (N-028). 캘린더 동기화만 영향, 블록·통계는 무관 |
 
 ### 🧭 개발 명령
@@ -173,10 +180,12 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | O-04 | Supabase 연결 + 스키마 적용 | 개발 | `.env.local`(로컬) · 마이그레이션 적용 완료 | O-03 | ✅ |
 | O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/{prisma,http,auth}/**` (12 테스트) | O-02 | ✅ |
 | O-06 | Vercel 첫 배포 | 개발 | https://nfs-web-five.vercel.app | O-04 | ✅ |
-| O-07 | GitHub Actions 크론 2종 + `CRON_SECRET` | 개발 | `.github/workflows/*.yml` | O-06 | ⬜ |
+| O-07 | GitHub Actions 크론 2종 + `CRON_SECRET` | 개발 | `.github/workflows/daily-settlement.yml` | O-06 | 🟡 |
 
 > ⚠️ **O-07의 크론 표현식은 UTC다.** KST 환산 주석을 반드시 병기한다.
 > 자정 정산 `5 15 * * *` / 주간 마감 `0 19 * * 0` (**KST 월요일 = UTC 일요일**)
+> 🟡 **자정 정산 워크플로만 만들었다.** 주간 마감 워크플로는 B-09 와 함께 만든다 (엔드포인트가 없는 크론은 매일 실패 알림만 낸다).
+> ⚠️ **GitHub 레포 시크릿 `APP_URL` · `CRON_SECRET` 을 아직 등록하지 않았다.** 등록 전에는 워크플로가 첫 스텝에서 실패한다.
 
 ---
 
@@ -190,7 +199,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `server/services/{settlement,day-occupants}.ts` | B-04 | ✅ |
 | B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/**`, `server/auth/**` (18 테스트) | O-05 | ✅ |
 | B-07 | 통계 집계 (일/주/월/년) | 개발 | `packages/domain/statistics/**` (17) · `server/services/statistics.ts` · `api/statistics/**` | O-03 | ✅ |
-| B-08 | 자정 정산 배치 엔드포인트 | 개발 | `app/api/jobs/daily-settlement/route.ts` | B-06, O-07 | ⬜ |
+| B-08 | 자정 정산 배치 엔드포인트 | 개발 | `app/api/jobs/daily-settlement/route.ts` · `services/settlement.ts` 의 `runDailySettlement` | B-06, O-07 | ✅ |
 | B-09 | 주간 마감 배치 엔드포인트 (월 04:00 KST) | 개발 | `app/api/jobs/weekly-closing/route.ts` | B-06, O-07 | ⬜ |
 | B-14 | API 명세 확정 + Route Handler 골격 | 개발 | `app/api/{blocks,statistics,auth,me,health}/**` | O-05 | ✅ |
 
