@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **20 / 44 작업 완료 (45%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **21 / 44 작업 완료 (48%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -42,9 +42,10 @@ eslint.config.mjs           시간·XSS·서버경계 방어 규칙
 
 **다음에 할 일 (순서대로):**
 
-1. **B-03 구글 로그인** — `app/api/auth/google/**`. 세션 발급 규약은 O-05 에서 이미 섰다.
-   ⛔ 구글 OAuth 클라이언트 발급이 필요하다 (`docs/개발/04-배포.md` §2)
-2. **U-03 리포트 화면** (시안 A → JSX). 로그인 없이도 만들 수 있다
+1. **U-03 리포트 화면** (시안 A → JSX) — 이제 로그인한 회원이 있다. 실데이터를 붙일 수 있다
+   ⚠️ 먼저 **Vercel 환경변수 4개 추가** 필요: GOOGLE_CLIENT_ID/SECRET · SESSION_SECRET · CRON_SECRET
+   (없으면 배포본에서 로그인이 안 된다. 로컬만 된다)
+2. **B-07 통계 집계** — 리포트 화면이 쓸 데이터
 3. **O-07 GitHub Actions 크론** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
 4. **O-04~O-06** 배포 — Q-011 답이 오면
 
@@ -62,7 +63,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (135건)
+pnpm test         전 패키지 (141건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
 pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 ```
@@ -87,8 +88,8 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
-| **2** | 핵심 도메인 · API | 4 / 9 | 🟡 **지금 여기** |
-| **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
+| **2** | 핵심 도메인 · API | 5 / 9 | 🟡 **지금 여기** |
+| **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
 | **4** | 화면 구현 | 2 / 9 | 🟡 |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
 | **6** | 품질 · 운영 | 1 / 4 | ⬜ |
@@ -140,7 +141,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 | B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` (19 테스트) | — | ✅ |
 | B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**` (41 테스트). 서비스 계층은 O-05 이후 | B-16, O-03 | ✅ |
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
-| B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/google/**` | O-05, **Q-011** | ⛔ |
+| B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/**`, `server/auth/**` (18 테스트) | O-05 | ✅ |
 | B-07 | 통계 집계 (일/주/월/년) | 개발 | `src/server/services/statistics.ts` | O-03 | ⬜ |
 | B-08 | 자정 정산 배치 엔드포인트 | 개발 | `app/api/jobs/daily-settlement/route.ts` | B-06, O-07 | ⬜ |
 | B-09 | 주간 마감 배치 엔드포인트 (월 04:00 KST) | 개발 | `app/api/jobs/weekly-closing/route.ts` | B-06, O-07 | ⬜ |
@@ -156,7 +157,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| B-10 | 구글 OAuth (로그인 + 읽기 스코프 · 토큰 암호화) | 개발 | `src/server/auth/google.ts` | B-03 | ⬜ |
+| B-10 | 구글 OAuth (로그인 + 읽기 스코프 · 토큰 암호화) | 개발 | `server/auth/google-oauth.ts`, `token-cipher.ts` | B-03 | ✅ |
 | B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `src/server/services/calendar-sync.ts` | B-10 | ⬜ |
 | B-12 | 색상(colorId) → 태그 매핑 | 개발 | `src/server/services/category-mapping.ts` | B-11 | ⬜ |
 | B-13 | 가입 시 1회 과거 백필 (4~8주) | 개발 | `src/server/services/backfill.ts` | B-11, B-09 | ⬜ |
