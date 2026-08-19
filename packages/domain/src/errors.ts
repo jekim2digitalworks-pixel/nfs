@@ -50,13 +50,25 @@ export function isNfsError(candidate: unknown): candidate is NfsError {
  * 자주 쓰는 예외는 생성자를 따로 둔다.
  * 호출부마다 한국어 문구를 새로 쓰면 같은 상황에 다른 말이 나온다.
  */
-export function budgetExceeded(remainingMinutes: number, requestedMinutes: number): NfsError {
+export function budgetExceeded(
+    remainingMinutes: number,
+    requestedMinutes: number,
+    detail?: Record<string, unknown>,
+): NfsError {
+    // 남은 시간을 시간 단위로 말한다. "남은 247분"은 사람이 읽고 판단하기 어렵다.
     const remainingHours = Math.floor(remainingMinutes / 60);
-    const message = `오늘 남은 ${remainingHours}시간을 넘습니다`;
+
+    let message: string;
+    if (remainingHours > 0) {
+        message = `오늘 남은 ${remainingHours}시간을 넘습니다`;
+    } else {
+        message = '오늘은 더 넣을 자리가 없습니다';
+    }
 
     return new NfsError('BUDGET_EXCEEDED', message, {
         remainingMinutes: remainingMinutes,
         requestedMinutes: requestedMinutes,
+        ...detail,
     });
 }
 

@@ -7,45 +7,45 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **14 / 44 작업 완료 (32%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **15 / 44 작업 완료 (34%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** **Phase 1 진행 중** — 스키마까지 완료. 다음은 예산 계산기
+**지금 단계:** **Phase 2** — 예산 계산기 완료. 다음은 블록 상태 전이
 
-**최근 완료:** **O-03 Prisma 스키마 ✅** (O-02 · B-16 에 이어)
-테이블 6종 + 제약·인덱스 전부 문서와 일치. 초기 마이그레이션 SQL 을 **DB 없이** 생성했다.
+**최근 완료:** **B-05 24시간 예산 계산기 ✅** — 이 프로젝트에서 가장 위험한 작업 하나를 끝냈다.
+정책 §2.1 네 규칙을 전부 구현했고, 구현 중 **정책의 구조적 구멍을 찾아 사용자 승인으로 메웠다** (N-026).
 
 **지금 코드가 어디까지 있나**
 ```
-apps/web                    Next 16 부팅 확인 (임시 화면)
-apps/web/src/server         enum 정합성 테스트
-packages/domain/time        ⭐ APP_ZONE · workDate · weekStartDate · DATE 컬럼 변환 (29 테스트)
-packages/domain/types       CategoryTag · BlockStatus · SourceType · CompletionType (Zod)
+apps/web                    Next 16 부팅 확인 (임시 화면) + enum 정합성 테스트
+packages/domain/time        ⭐ 존 유틸 · DATE 컬럼 변환 (29 테스트)
+packages/domain/budget      ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증 (53 테스트)
+packages/domain/types       CategoryTag · BlockStatus · SourceType · CompletionType
 packages/domain/errors.ts   에러 코드 7종
-packages/db                 ⭐ schema.prisma (6 테이블) + 초기 마이그레이션 SQL
-eslint.config.mjs           시간·XSS·서버경계 방어 규칙 (작동 확인)
+packages/db                 schema.prisma (6 테이블) + 초기 마이그레이션 SQL
+eslint.config.mjs           시간·XSS·서버경계 방어 규칙
 ```
 
 **확인된 것 (실측)**
-- 도메인 테스트 **29건**이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일하게 통과
-- enum 정합성 테스트가 **첫 실행에서 실제 불일치를 잡았다** — 도메인에 `CALENDAR_IMPORTED` 누락
-- `prisma migrate diff --from-empty` 로 **DB 계정 없이** 초기 SQL 생성. 적용만 남았다
-- Prisma 7은 문서 가정과 크게 달랐다 (`directUrl` 소멸 · 설정이 `prisma.config.ts` 로) → **N-025**
+- 도메인 테스트 **82건**이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일 통과
+- 예산 계산기: 합집합 · 실측 우선 귀속 · 자정 분할 · 24시간 상한 전부 테스트로 고정
+- **불변식**: 태그별 합계의 총합 == 점유 합계 (계산 구조상 자동 성립)
+- ⚠️ 정책 §2.1 규칙 3 은 원래 **영원히 발화하지 않는 규칙**이었다 → N-026 으로 판정 기준 확정
+- ⚠️ 테스트계획 §2.2 #9·#10 의 산술이 모순이었다 → 경계 원칙으로 재작성
 
 **다음에 할 일 (순서대로):**
 
-1. **B-05 예산 계산기** ⭐⭐ — `packages/domain/budget`. **이 프로젝트에서 가장 위험한 작업.**
-   순수 함수라 DB 없이 끝까지 간다. 테스트 먼저 (`테스트/01` §2·3)
-2. **B-04 블록 상태 전이** — `packages/domain/block`. 역시 순수 함수
-3. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체
-4. **O-04~O-06** 배포 — Q-011 답이 오면 (`pnpm db:migrate` 한 번이면 스키마가 올라간다)
+1. **B-04 블록 상태 전이** — `packages/domain/block`. READY→RUNNING→PAUSED, 조기 완료·자동 정산.
+   순수 함수라 DB 없이 간다. 테스트 먼저
+2. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체
+3. **O-05 공통 규약 골격** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
+4. **O-04~O-06** 배포 — Q-011 답이 오면
 
 **블로커:** 없음
 **사용자 확인 대기:** Q-011(외부 계정·시크릿) · Q-010(평생 화면 기준 나이)
-→ 둘 다 **위 1~3번을 막지 않는다.**
 
 **개발 명령**
 ```
@@ -53,7 +53,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (33건)
+pnpm test         전 패키지 (86건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
 pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 ```
@@ -77,8 +77,8 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
-| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 2 / 6 | 🟡 **지금 여기** |
-| **2** | 핵심 도메인 · API | 2 / 9 | 🟡 |
+| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 2 / 6 | 🟡 |
+| **2** | 핵심 도메인 · API | 3 / 9 | 🟡 **지금 여기** |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
 | **4** | 화면 구현 | 1 / 9 | ⬜ |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
@@ -127,7 +127,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| B-05 | **24시간 예산 계산기 (구간 병합)** ⭐⭐ | 개발 | `packages/domain/budget/**` | — | ⬜ |
+| B-05 | **24시간 예산 계산기 (구간 병합)** ⭐⭐ | 개발 | `packages/domain/budget/**` (53 테스트) | — | ✅ |
 | B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` (19 테스트) | — | ✅ |
 | B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**`, `src/server/services/block.ts` | B-16, O-03 | ⬜ |
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
