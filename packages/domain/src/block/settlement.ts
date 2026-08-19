@@ -1,0 +1,146 @@
+import type { DateTime } from 'luxon';
+import type { CompletionType } from '../types/block';
+import type { CategoryTag } from '../types/category-tag';
+import { workDateOf } from '../time/zone';
+import {
+    focusMinutesAt,
+    plannedEndTimeOf,
+    type ActiveBlockSnapshot,
+} from './transitions';
+
+/**
+ * 정산 — 가변 작업 영역(`ActiveBlock`)이 불변 원장(`TimeLog`)으로 넘어가는 지점.
+ *
+ * **되돌릴 수 없다.** 그래서 여기서 계산한 값이 영원히 남는다.
+ * 이 파일이 하는 일은 "무엇을 기록할지" 정하는 것뿐이고,
+ * 실제 INSERT/DELETE 순서와 멱등성은 서비스(B-06)가 맡는다.
+ */
+
+/** 무엇이 정산을 일으켰는가. 완료 유형은 이 방아쇠에서 파생된다 */
+export type SettlementTrigger =
+    /** 사용자가 완료 버튼을 눌렀다 (계획을 채웠는지는 여기서 판단한다) */
+    | 'USER_COMPLETE'
+    /** 사용자가 블록을 지웠다 */
+    | 'USER_ABANDON'
+    /** 자정 배치가 미완료 블록을 강제로 닫았다 */
+    | 'MIDNIGHT_BATCH';
+
+/** 원장에 들어갈 한 줄. 겹침 차감은 예산 계산기가 채운다 */
+export interface TimeLogDraft {
+    sourceType: 'NFS_BLOCK';
+    /** 멱등성 키 — 같은 블록을 두 번 정산해도 DB 가 막는다 */
+    sourceReferenceKey: string;
+    title: string;
+    categoryTag: CategoryTag;
+    /** 통계 집계 기준일 = **시작한 날** (정책 §2.3) */
+    statDate: string;
+    startTime: DateTime;
+    endTime: DateTime;
+    plannedMinutes: number;
+    actualFocusMinutes: number;
+    completionType: CompletionType;
+    pauseCount: number;
+}
+
+/**
+ * 완료 유형을 정한다. (정책 §1.2)
+ *
+ * `AUTO_SETTLED` 를 따로 두는 이유는 **신뢰도 때문**이다.
+ * 사용자가 노트북을 덮고 잠들었는지, 진짜 그때까지 집중했는지 우리는 모른다.
+ * 나중에 "자동 정산분 제외" 같은 필터를 걸 수 있게 출처를 남겨둔다.
+ */
+function completionTypeOf(
+    block: ActiveBlockSnapshot,
+    now: DateTime,
+    trigger: SettlementTrigger,
+): CompletionType {
+    if (trigger === 'USER_ABANDON') {
+        return 'ABANDONED';
+    }
+    if (trigger === 'MIDNIGHT_BATCH') {
+        return 'AUTO_SETTLED';
+    }
+
+    // USER_COMPLETE — 계획을 채웠으면 정상 완료, 못 채웠으면 조기 완료.
+    // 이 구분이 "계획한 3시간 중 조기 종료가 몇 번이었나"라는 회고 신호가 된다.
+    if (focusMinutesAt(block, now) >= block.plannedMinutes) {
+        return 'NORMAL_COMPLETED';
+    }
+    return 'EARLY_FINISHED';
+}
+
+/**
+ * 원장에 남길 시작 시각.
+ *
+ * 타이머를 한 번도 누르지 않았으면 **계획 시작 시각**을 쓴다 (테스트계획 #19).
+ * null 로 두면 통계가 이 행을 어디에 놓을지 몰라 조용히 빠진다.
+ */
+function settledStartTimeOf(block: ActiveBlockSnapshot): DateTime {
+    if (block.actualStartTime !== null) {
+        return block.actualStartTime;
+    }
+    return block.plannedStartTime;
+}
+
+/**
+ * 원장에 남길 종료 시각.
+ *
+ * 세 가지를 동시에 만족해야 한다:
+ *   1. 시작보다 이를 수 없다 — 시작 전에 지운 블록은 길이 0 이 된다
+ *   2. 계획 종료를 넘지 않는다 — 예산에서 계획보다 많은 자리를 차지하면 안 된다
+ *   3. 그 사이에서는 실제로 흐른 시각(now)을 쓴다 — 조기 완료를 정직하게 기록한다
+ *
+ * ⚠️ 2번이 자정 배치에서 특히 중요하다.
+ *    00:05 에 도는 배치가 어제 22:00 블록을 `now` 로 닫으면
+ *    2시간짜리 블록이 2시간 5분으로 늘어나고 날짜까지 넘어간다.
+ */
+function settledEndTimeOf(
+    block: ActiveBlockSnapshot,
+    now: DateTime,
+    startTime: DateTime,
+): DateTime {
+    const plannedEnd = plannedEndTimeOf(block);
+
+    let endTime = now;
+
+    if (endTime < startTime) {
+        endTime = startTime;
+    }
+    if (endTime > plannedEnd) {
+        endTime = plannedEnd;
+    }
+    return endTime;
+}
+
+/**
+ * 정산할 값을 계산한다. 저장은 하지 않는다.
+ *
+ * 집중 시간은 **누적된 실측값**이다. 벽시계 길이가 아니다 —
+ * 일시정지한 구간과 뽀모도로 휴식은 여기 포함되지 않는다 (N-019).
+ */
+export function settleBlock(
+    block: ActiveBlockSnapshot,
+    now: DateTime,
+    trigger: SettlementTrigger,
+): TimeLogDraft {
+    const startTime = settledStartTimeOf(block);
+    const endTime = settledEndTimeOf(block, now, startTime);
+
+    // 제목이 비어 있으면 원장에도 비어서 들어간다.
+    // 화면이 태그명으로 대체해 보여준다 — 서버가 한국어를 원장에 박지 않는다.
+    return {
+        sourceType: 'NFS_BLOCK',
+        sourceReferenceKey: block.activeBlockId,
+        title: block.title,
+        categoryTag: block.categoryTag,
+        // 통계 귀속은 **시작한 날** 하나뿐이다. 자정을 넘어도 쪼개지 않는다 (정책 §2.3).
+        // 예산은 날짜별로 분할 청구하므로 두 기준이 어긋나지만, 각 기능이 목적에 최적화된 결과다.
+        statDate: workDateOf(startTime),
+        startTime: startTime,
+        endTime: endTime,
+        plannedMinutes: block.plannedMinutes,
+        actualFocusMinutes: focusMinutesAt(block, now),
+        completionType: completionTypeOf(block, now, trigger),
+        pauseCount: block.pauseCount,
+    };
+}
