@@ -13,49 +13,50 @@
 
 ## 🔴 현재 상태
 
-**지금 단계:** **Phase 2** — 예산 계산기 완료. 다음은 블록 상태 전이
+**지금 단계:** **Phase 2** — 로그인까지 뚫렸다. 다음은 화면에 실데이터 붙이기
 
-**최근 완료:** **B-04 블록 도메인 ✅** (B-05 예산 계산기에 이어)
-정산 테스트를 쓰다 **자동 정산이 통계를 부풀리는 버그를 찾아 고쳤다.** — 이 프로젝트에서 가장 위험한 작업 하나를 끝냈다.
-정책 §2.1 네 규칙을 전부 구현했고, 구현 중 **정책의 구조적 구멍을 찾아 사용자 승인으로 메웠다** (N-026).
+**최근 완료:** **B-03 구글 로그인 ✅ · B-10 OAuth/토큰 암호화 ✅**
+실제 로그인 성공 — member_id 1 생성, 리프레시 토큰 **암호화 저장** 확인.
 
 **지금 코드가 어디까지 있나**
 ```
-apps/web                    Next 16 부팅 확인 (임시 화면) + enum 정합성 테스트
-packages/domain/time        ⭐ 존 유틸 · DATE 컬럼 변환 (29 테스트)
-packages/domain/budget      ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증 (53 테스트)
-packages/domain/block       ⭐ 생성 검증 · 상태 전이 · 정산 (41 테스트)
-packages/domain/types       CategoryTag · BlockStatus · SourceType · CompletionType
-packages/domain/errors.ts   에러 코드 7종
-packages/db                 schema.prisma (6 테이블) + 초기 마이그레이션 SQL
-eslint.config.mjs           시간·XSS·서버경계 방어 규칙
+apps/web/src/app          화면 3종(셸) + api/{health, me, auth/*}
+apps/web/src/server       ⭐ prisma 싱글턴 · 세션(HMAC) · withMember · 에러매핑
+                          auth/google-oauth · token-cipher(AES-256-GCM) · services/member
+packages/domain/time      존 유틸 · DATE 컬럼 변환 (29)
+packages/domain/budget    ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증 (53)
+packages/domain/block     ⭐ 생성 검증 · 상태 전이 · 정산 (41)
+packages/db               schema.prisma 6테이블 — **Supabase 에 적용 완료**
+eslint.config.mjs         시간·XSS·서버경계 방어 규칙
 ```
 
 **확인된 것 (실측)**
-- 도메인 테스트 **82건**이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일 통과
-- 예산 계산기: 합집합 · 실측 우선 귀속 · 자정 분할 · 24시간 상한 전부 테스트로 고정
-- ⚠️ **자동 정산 버그를 잡았다** — 22:00 시작 60분 블록을 00:05 배치가 닫으면 집중 125분이 기록됐다.
-  `actualFocusMinutes ≤ endTime − startTime` 불변식을 코드로 강제 (N-027)
-- **불변식**: 태그별 합계의 총합 == 점유 합계 (계산 구조상 자동 성립)
-- ⚠️ 정책 §2.1 규칙 3 은 원래 **영원히 발화하지 않는 규칙**이었다 → N-026 으로 판정 기준 확정
-- ⚠️ 테스트계획 §2.2 #9·#10 의 산술이 모순이었다 → 경계 원칙으로 재작성
+- 도메인 테스트 123건이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일 통과
+- 배포본이 **KST 날짜**를 그린다 (Vercel 함수는 UTC) → 존이 코드에 있다는 실물 증명
+- 로그인 왕복 성공 · 리프레시 토큰이 DB 에 **평문이 아니다**
+- ⚠️ 자동 정산이 60분 블록에 125분을 기록하던 버그를 잡았다 (N-027)
+- ⚠️ 24시간 상한이 **영원히 발화하지 않는 규칙**이었다 → 판정 기준 확정 (N-026)
+- ⚠️ 구글 테스트 모드는 리프레시 토큰이 **7일 만료** (N-028)
+
+**⛔ 지금 배포본은 로그인이 안 된다**
+Vercel 환경변수에 4개가 빠져 있다. `docs/개발/04-배포.md` §4.2 참조.
+```
+GOOGLE_CLIENT_ID  GOOGLE_CLIENT_SECRET  SESSION_SECRET  CRON_SECRET
+```
+값은 로컬 `.env.local` 에 있다. 넣은 뒤 **재배포**해야 반영된다.
+구글 콘솔의 승인된 리디렉션 URI 에 배포 도메인도 넣었는지 함께 확인한다.
 
 **다음에 할 일 (순서대로):**
 
-1. **U-03 리포트 화면** (시안 A → JSX) — 이제 로그인한 회원이 있다. 실데이터를 붙일 수 있다
-   ⚠️ 먼저 **Vercel 환경변수 4개 추가** 필요: GOOGLE_CLIENT_ID/SECRET · SESSION_SECRET · CRON_SECRET
-   (없으면 배포본에서 로그인이 안 된다. 로컬만 된다)
-2. **B-07 통계 집계** — 리포트 화면이 쓸 데이터
-3. **O-07 GitHub Actions 크론** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
-4. **O-04~O-06** 배포 — Q-011 답이 오면
+1. **B-07 통계 집계** — 리포트 화면이 쓸 데이터. `groupBy` + 월별은 `$queryRaw`(Postgres 방언 주의)
+2. **U-03 리포트 화면** (시안 A → JSX) — 이제 붙일 데이터가 생긴다
+3. **B-06 이관 트랜잭션** ⭐⭐ — 도메인은 끝났고 DB 쓰기만 남았다. 멱등성이 핵심
+4. **O-07 GitHub Actions 크론**
 
 **블로커:** 없음
-**사용자 확인 대기:** Q-010(평생 화면 기준 나이) · 구글 OAuth 발급(B-03 때 필요, 지금은 안 막는다)
+**사용자 확인 대기:** Q-010(평생 화면 기준 나이) · Vercel 환경변수 추가
 
-**⭐ 배포 파이프라인 가동** — https://nfs-web-five.vercel.app
-- Supabase(서울) 테이블 6종 적용 · 풀러 6543(런타임) / 5432(마이그레이션)
-- Vercel 3화면 200 · 서버가 그린 날짜가 **KST** 로 나온다 (함수는 UTC 인데) → 존이 코드에 있다는 실물 증명
-- 저장소: jekim2digitalworks-pixel/nfs
+**배포** — https://nfs-web-five.vercel.app · 저장소 jekim2digitalworks-pixel/nfs
 
 **개발 명령**
 ```
@@ -65,7 +66,7 @@ pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
 pnpm test         전 패키지 (141건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
-pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
+pnpm db:migrate   스키마 변경 시 (Supabase 연결됨)
 ```
 
 ---
