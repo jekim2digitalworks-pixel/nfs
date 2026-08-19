@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **19 / 44 작업 완료 (43%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **20 / 44 작업 완료 (45%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -42,9 +42,10 @@ eslint.config.mjs           시간·XSS·서버경계 방어 규칙
 
 **다음에 할 일 (순서대로):**
 
-1. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체.
-   도메인만 4연속으로 쌓았다. 눈에 보이는 것을 한 번 세울 차례다
-2. **O-05 공통 규약 골격** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
+1. **B-03 구글 로그인** — `app/api/auth/google/**`. 세션 발급 규약은 O-05 에서 이미 섰다.
+   ⛔ 구글 OAuth 클라이언트 발급이 필요하다 (`docs/개발/04-배포.md` §2)
+2. **U-03 리포트 화면** (시안 A → JSX). 로그인 없이도 만들 수 있다
+3. **O-07 GitHub Actions 크론** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
 4. **O-04~O-06** 배포 — Q-011 답이 오면
 
 **블로커:** 없음
@@ -61,7 +62,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (127건)
+pnpm test         전 패키지 (135건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
 pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 ```
@@ -85,7 +86,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
-| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 4 / 6 | 🟡 |
+| **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
 | **2** | 핵심 도메인 · API | 4 / 9 | 🟡 **지금 여기** |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
 | **4** | 화면 구현 | 2 / 9 | 🟡 |
@@ -122,7 +123,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 | O-02 | pnpm 모노레포 + Next.js + Prisma 스캐폴딩 | 개발 | `pnpm-workspace.yaml`, `apps/web/`, `packages/*`, `eslint.config.mjs` | — | ✅ |
 | O-03 | Prisma 스키마 6종 + 초기 마이그레이션 SQL | 개발 | `packages/db/prisma/schema.prisma`, `prisma/migrations/…_init/` | O-02, A-02 | ✅ |
 | O-04 | Supabase 연결 + 스키마 적용 | 개발 | `.env.local`(로컬) · 마이그레이션 적용 완료 | O-03 | ✅ |
-| O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/http/**` | O-02 | ⬜ |
+| O-05 | 공통 규약 골격 (Zod · `withMember` · 에러 매핑) | 개발 | `src/server/{prisma,http,auth}/**` (12 테스트) | O-02 | ✅ |
 | O-06 | Vercel 첫 배포 | 개발 | https://nfs-web-five.vercel.app | O-04 | ✅ |
 | O-07 | GitHub Actions 크론 2종 + `CRON_SECRET` | 개발 | `.github/workflows/*.yml` | O-06 | ⬜ |
 
