@@ -15,4 +15,6 @@ export {
     dateStringToDateColumn,
     dateColumnToDateString,
     instantToDateColumn,
+    instantFromColumn,
+    instantToColumn,
 } from './date-column';

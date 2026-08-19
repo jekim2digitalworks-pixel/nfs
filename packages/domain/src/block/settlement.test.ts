@@ -118,6 +118,52 @@ describe('⭐ 자정 배치가 어제 블록을 닫을 때 (실제로 재현한 
     });
 });
 
+describe('⭐ 계획 시각보다 늦게 시작한 블록 (실API 로 찾은 버그)', () => {
+    /** 14:00 계획 블록을 16:13 에 만들어 바로 시작한 상황 */
+    function lateStarted(startedAt: DateTime): ActiveBlockSnapshot {
+        return createBlock(
+            { ...command({ plannedStartTime: at('14:00:00'), plannedMinutes: 60 }), startImmediately: true },
+            startedAt,
+        );
+    }
+
+    it('집중 시간이 음수가 되지 않는다', () => {
+        // 상한을 '계획 종료(15:00)'로 재면 시작(16:13)보다 앞서 구간이 음수가 된다.
+        // 실제로 원장에 −74분이 박혔다.
+        const block = lateStarted(at('16:13:00'));
+        const draft = settleBlock(block, at('16:13:30'), 'USER_COMPLETE');
+
+        expect(draft.actualFocusMinutes).toBeGreaterThanOrEqual(0);
+        expect(intervalMinutesOf(draft.startTime, draft.endTime)).toBeGreaterThanOrEqual(0);
+    });
+
+    it('늦게 시작해도 실제 집중한 만큼 기록된다', () => {
+        // 16:13 시작 → 16:43 완료. 30분 집중했으면 30분이 남아야 한다
+        const block = lateStarted(at('16:13:00'));
+        const draft = settleBlock(block, at('16:43:00'), 'USER_COMPLETE');
+
+        expect(draft.actualFocusMinutes).toBe(30);
+        expect(intervalMinutesOf(draft.startTime, draft.endTime)).toBe(30);
+        expect(draft.completionType).toBe('EARLY_FINISHED');
+    });
+
+    it('늦게 시작해도 계획 길이를 넘지 않는다', () => {
+        // 16:13 시작, 60분 계획 → 아무리 오래 켜둬도 17:13 에서 잘린다
+        const block = lateStarted(at('16:13:00'));
+        const draft = settleBlock(block, at('20:00:00'), 'MIDNIGHT_BATCH');
+
+        expect(draft.endTime.toISO()).toBe(at('17:13:00').toISO());
+        expect(draft.actualFocusMinutes).toBe(60);
+    });
+
+    it('statDate 는 실제 시작한 날이다', () => {
+        const block = lateStarted(at('16:13:00'));
+        const draft = settleBlock(block, at('16:43:00'), 'USER_COMPLETE');
+
+        expect(draft.statDate).toBe('2026-08-18');
+    });
+});
+
 describe('#19 타이머를 한 번도 누르지 않은 블록', () => {
     it('시작 시각은 계획 시작 시각을 쓰고 집중은 0분이다', () => {
         const readyBlock = createBlock(command(), at('13:50:00'));

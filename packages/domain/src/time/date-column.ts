@@ -52,3 +52,21 @@ export function instantToDateColumn(instant: DateTime): Date {
     const dateStringInAppZone = instant.setZone(APP_ZONE).toFormat('yyyy-MM-dd');
     return dateStringToDateColumn(dateStringInAppZone);
 }
+
+/**
+ * DB 의 `timestamptz` 컬럼 값(JS `Date`) → 도메인이 쓰는 `DateTime`.
+ *
+ * `@db.Date` 와 달리 이건 **절대 시각**이라 존 변환이 정당하다.
+ * 앱 존으로 옮겨두면 이후 계산이 전부 한국 시간 기준으로 흐른다.
+ *
+ * 이 함수가 없으면 저장소 계층마다 `DateTime.fromJSDate(x, { zone: 'Asia/Seoul' })` 를
+ * 쓰게 되고, 그 순간 존을 아는 곳이 여러 군데가 된다.
+ */
+export function instantFromColumn(value: Date): DateTime {
+    return DateTime.fromJSDate(value, { zone: APP_ZONE });
+}
+
+/** 도메인 `DateTime` → `timestamptz` 컬럼에 넣을 값 */
+export function instantToColumn(instant: DateTime): Date {
+    return instant.toJSDate();
+}

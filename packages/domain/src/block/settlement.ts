@@ -2,11 +2,7 @@ import type { DateTime } from 'luxon';
 import type { CompletionType } from '../types/block';
 import type { CategoryTag } from '../types/category-tag';
 import { workDateOf } from '../time/zone';
-import {
-    focusMinutesAt,
-    plannedEndTimeOf,
-    type ActiveBlockSnapshot,
-} from './transitions';
+import { focusMinutesAt, type ActiveBlockSnapshot } from './transitions';
 
 /**
  * 정산 — 가변 작업 영역(`ActiveBlock`)이 불변 원장(`TimeLog`)으로 넘어가는 지점.
@@ -86,28 +82,36 @@ function settledStartTimeOf(block: ActiveBlockSnapshot): DateTime {
  * 원장에 남길 종료 시각.
  *
  * 세 가지를 동시에 만족해야 한다:
- *   1. 시작보다 이를 수 없다 — 시작 전에 지운 블록은 길이 0 이 된다
- *   2. 계획 종료를 넘지 않는다 — 예산에서 계획보다 많은 자리를 차지하면 안 된다
+ *   1. 계획한 길이를 넘지 않는다 — 예산에서 계획보다 많은 자리를 차지하면 안 된다
+ *   2. 시작보다 이를 수 없다 — 시작 전에 지운 블록은 길이 0 이 된다
  *   3. 그 사이에서는 실제로 흐른 시각(now)을 쓴다 — 조기 완료를 정직하게 기록한다
  *
- * ⚠️ 2번이 자정 배치에서 특히 중요하다.
+ * ⚠️ 1번이 자정 배치에서 특히 중요하다.
  *    00:05 에 도는 배치가 어제 22:00 블록을 `now` 로 닫으면
- *    2시간짜리 블록이 2시간 5분으로 늘어나고 날짜까지 넘어간다.
+ *    1시간짜리 블록이 2시간 5분으로 늘어나고 날짜까지 넘어간다.
+ *
+ * ⭐ **상한은 `계획 종료`가 아니라 `실제 시작 + 계획 길이`다.**
+ *    계획 종료로 재면, 14:00 블록을 16:13 에 시작한 사용자의 기록이 통째로 깨진다 —
+ *    상한(15:00)이 시작(16:13)보다 앞서 **구간 길이가 음수**가 된다.
+ *    실제로 API 로 재현했다: 60분 블록에 집중 −74분이 기록됐다.
+ *    (단위 테스트가 못 잡은 이유: 전부 계획 시각과 시작 시각을 같게 두고 있었다)
+ *
+ *    2번은 마지막에 적용한다. "시작보다 이를 수 없다"가 최종 불변식이기 때문이다.
  */
 function settledEndTimeOf(
     block: ActiveBlockSnapshot,
     now: DateTime,
     startTime: DateTime,
 ): DateTime {
-    const plannedEnd = plannedEndTimeOf(block);
+    const lengthCap = startTime.plus({ minutes: block.plannedMinutes });
 
     let endTime = now;
 
+    if (endTime > lengthCap) {
+        endTime = lengthCap;
+    }
     if (endTime < startTime) {
         endTime = startTime;
-    }
-    if (endTime > plannedEnd) {
-        endTime = plannedEnd;
     }
     return endTime;
 }
@@ -134,10 +138,17 @@ function settledFocusMinutesOf(
     endTime: DateTime,
 ): number {
     const measuredMinutes = focusMinutesAt(block, now);
-    const intervalMinutes = Math.floor(endTime.diff(startTime, 'minutes').minutes);
+
+    // 구간 길이가 음수가 되는 상황은 이제 없지만(settledEndTimeOf 가 막는다),
+    // 이 값이 원장에 그대로 박히므로 0 아래로는 내려가지 않게 한 겹 더 둔다.
+    // 음수 집중 시간은 통계 합계를 조용히 갉아먹는다.
+    const intervalMinutes = Math.max(0, Math.floor(endTime.diff(startTime, 'minutes').minutes));
 
     if (measuredMinutes > intervalMinutes) {
         return intervalMinutes;
+    }
+    if (measuredMinutes < 0) {
+        return 0;
     }
     return measuredMinutes;
 }
