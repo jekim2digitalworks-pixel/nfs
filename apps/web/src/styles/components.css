@@ -1,0 +1,183 @@
+/**
+ * 공통 컴포넌트 — 규격은 docs/디자인/01-디자인시스템.md §6
+ *
+ * 화면 전용 스타일은 여기 두지 않는다. 루트에 화면 클래스를 걸고 그 안에서 쓴다.
+ */
+
+/* ── 소재 (유리) ─────────────────────────────────────
+   다크에서 그림자는 거의 보이지 않는다. 깊이는 밝기 차와 블룸으로 만든다. */
+.glass {
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--hair);
+    backdrop-filter: blur(26px);
+}
+
+/* ── 카드 ─────────────────────────────────────────── */
+.card {
+    border-radius: var(--r-xl);
+    padding: 20px;
+    margin-inline: calc(var(--pad-card) - var(--pad-screen)); /* 카드가 화면보다 넓게 나간다 */
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--hair);
+}
+
+/* ── 떠 있는 탭 ───────────────────────────────────── */
+.tabs {
+    position: fixed;
+    z-index: 20;
+
+    /* ⚠️ left:50% 는 shrink-to-fit 폭을 절반으로 가둔다.
+       width:max-content 를 빼면 라벨이 세로로 깨진다 — 실제로 밟았다. */
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+
+    bottom: calc(26px + env(safe-area-inset-bottom));
+
+    display: flex;
+    gap: 2px;
+    padding: 5px;
+    border-radius: var(--r-pill);
+
+    background: rgba(22, 22, 28, 0.72);
+    border: 1px solid var(--hair);
+    backdrop-filter: blur(30px) saturate(180%);
+
+    /* 떠 있는 요소만 예외적으로 그림자를 쓴다 */
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+
+.tabs a {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 42px;
+    padding: 0 17px;
+    border-radius: var(--r-pill);
+    color: var(--tx3);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.tabs a[aria-current='page'] {
+    background: var(--tx);
+    color: #0a0a0d;
+    font-weight: 600;
+}
+
+.tabs a svg {
+    display: block;
+}
+
+/* ── 칩 ───────────────────────────────────────────── */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    background: var(--s1);
+    border: 1px solid var(--hair);
+    color: var(--tx);
+    font-size: var(--t-label);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+/* ── 아이콘 버튼 — 터치 타겟 최소 44×44 ──────────── */
+.icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-pill);
+    color: var(--tx2);
+}
+
+/* ── 버튼 ─────────────────────────────────────────── */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 56px;
+    border-radius: var(--r-pill);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.btn--primary {
+    background: var(--tx);
+    color: #0a0a0d;
+}
+
+.btn--secondary {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--hair);
+    color: var(--tx);
+}
+
+/* ── 증감 알약 ────────────────────────────────────── */
+.delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 11px;
+    border-radius: var(--r-pill);
+    font-size: var(--t-caption);
+    font-weight: 500;
+}
+
+.delta--up {
+    background: var(--up-bg);
+    color: var(--up);
+}
+
+/* 감소는 강조하지 않는다 */
+.delta--down {
+    background: var(--s1);
+    color: var(--tx2);
+}
+
+/* ── 카테고리 점 · 틴트 ──────────────────────────── */
+.tag-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--c, var(--tx3));
+    flex: none;
+}
+
+/* 색을 새로 정의하지 않고 파생한다 */
+.tag-tint {
+    background: color-mix(in srgb, var(--c, var(--tx3)) 36%, transparent);
+}
+
+/* ── 빈 슬롯 ──────────────────────────────────────── */
+.slot-empty {
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    border-radius: var(--r-md);
+}
+
+/* ── 스켈레톤 ─────────────────────────────────────── */
+.skeleton {
+    background: var(--s1);
+    border-radius: var(--r-sm);
+    animation: skeleton-pulse 1.6s var(--ease) infinite;
+}
+
+@keyframes skeleton-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}

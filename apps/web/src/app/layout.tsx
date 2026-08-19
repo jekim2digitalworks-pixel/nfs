@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { Instrument_Sans, Noto_Sans_KR } from 'next/font/google';
+import { FloatingTabs } from '@/components/layout/FloatingTabs';
 import './globals.css';
 
 /**
@@ -6,11 +8,28 @@ import './globals.css';
  *
  * 이걸 명시하지 않으면 빌드 시점의 날짜가 박제된 HTML 이 배포된다.
  * (O-02 검증 중 실제로 재현했다 — 루트 페이지가 ○ Static 으로 잡혔다)
- *
- * 회원 세션을 읽는 순간(await cookies()) 자동으로 동적이 되긴 하지만,
- * 그건 "우연히 그렇게 되는" 방어다. 의도를 한 곳에 적어둔다.
  */
 export const dynamic = 'force-dynamic';
+
+/**
+ * 서체는 next/font 로 셀프 호스팅한다. CDN 링크를 쓰면 폰트가 늦게 와서
+ * 레이아웃이 한 번 튄다(CLS) — 숫자가 주인공인 앱에서 특히 눈에 띈다.
+ *
+ * Instrument Sans 는 라틴·숫자, Noto Sans KR 은 한글을 받는다.
+ * 스택 순서만으로 갈리므로 역할별로 다른 패밀리를 섞지 않는다.
+ */
+const instrumentSans = Instrument_Sans({
+    subsets: ['latin'],
+    display: 'swap',
+    variable: '--font-latin',
+});
+
+const notoSansKr = Noto_Sans_KR({
+    subsets: ['latin'],
+    weight: ['400', '500', '600', '700'],
+    display: 'swap',
+    variable: '--font-ko',
+});
 
 export const metadata: Metadata = {
     title: 'NFS — Not For Sale',
@@ -30,8 +49,11 @@ export default function RootLayout({
     children,
 }: Readonly<{ children: React.ReactNode }>) {
     return (
-        <html lang="ko">
-            <body>{children}</body>
+        <html lang="ko" className={`${instrumentSans.variable} ${notoSansKr.variable}`}>
+            <body>
+                {children}
+                <FloatingTabs />
+            </body>
         </html>
     );
 }

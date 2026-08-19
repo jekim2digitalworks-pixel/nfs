@@ -1,4 +1,4 @@
-/* O-02 스캐폴딩 최소 리셋. U-02(토큰 CSS)에서 tokens.css / base.css / components.css 로 교체된다. */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body { background: #08080B; color: #F6F6F8; }
+/* 순서 고정: 토큰 → 리셋 → 컴포넌트. 뒤에서 앞을 덮어쓴다 */
+@import '../styles/tokens.css';
+@import '../styles/base.css';
+@import '../styles/components.css';
