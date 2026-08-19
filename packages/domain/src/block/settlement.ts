@@ -113,6 +113,36 @@ function settledEndTimeOf(
 }
 
 /**
+ * 원장에 남길 집중 분. ⭐ **기록 구간의 길이를 넘을 수 없다.**
+ *
+ * 왜 상한이 필요한가 (실제로 재현한 버그):
+ *   사용자가 22:00 에 60분 블록을 시작하고 노트북을 덮은 채 잤다.
+ *   블록은 RUNNING 인 채로 남고, 00:05 에 도는 자정 배치가 정산한다.
+ *   `누적 + (now − lastResumed)` 를 그대로 쓰면 **125분**이 나온다 —
+ *   60분짜리 블록이 2시간 넘게 집중한 것으로 원장에 박힌다.
+ *
+ *   종료 시각은 이미 계획 종료로 캡되어 구간은 60분인데 집중만 125분이 되어
+ *   **"집중 시간 > 그 시간에 실재한 구간"** 이라는 모순이 통계에 남는다.
+ *   자동 정산분이 통계를 부풀리는 가장 흔한 경로다.
+ *
+ * 그래서 불변식을 코드로 강제한다: `actualFocusMinutes ≤ endTime − startTime`.
+ */
+function settledFocusMinutesOf(
+    block: ActiveBlockSnapshot,
+    now: DateTime,
+    startTime: DateTime,
+    endTime: DateTime,
+): number {
+    const measuredMinutes = focusMinutesAt(block, now);
+    const intervalMinutes = Math.floor(endTime.diff(startTime, 'minutes').minutes);
+
+    if (measuredMinutes > intervalMinutes) {
+        return intervalMinutes;
+    }
+    return measuredMinutes;
+}
+
+/**
  * 정산할 값을 계산한다. 저장은 하지 않는다.
  *
  * 집중 시간은 **누적된 실측값**이다. 벽시계 길이가 아니다 —
@@ -125,6 +155,7 @@ export function settleBlock(
 ): TimeLogDraft {
     const startTime = settledStartTimeOf(block);
     const endTime = settledEndTimeOf(block, now, startTime);
+    const actualFocusMinutes = settledFocusMinutesOf(block, now, startTime, endTime);
 
     // 제목이 비어 있으면 원장에도 비어서 들어간다.
     // 화면이 태그명으로 대체해 보여준다 — 서버가 한국어를 원장에 박지 않는다.
@@ -139,7 +170,7 @@ export function settleBlock(
         startTime: startTime,
         endTime: endTime,
         plannedMinutes: block.plannedMinutes,
-        actualFocusMinutes: focusMinutesAt(block, now),
+        actualFocusMinutes: actualFocusMinutes,
         completionType: completionTypeOf(block, now, trigger),
         pauseCount: block.pauseCount,
     };

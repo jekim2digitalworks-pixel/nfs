@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-19** |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **15 / 44 작업 완료 (34%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **16 / 44 작업 완료 (36%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -15,7 +15,8 @@
 
 **지금 단계:** **Phase 2** — 예산 계산기 완료. 다음은 블록 상태 전이
 
-**최근 완료:** **B-05 예산 계산기 ✅** · **B-04 블록 도메인 🟡**(정산 테스트 미작성) — 이 프로젝트에서 가장 위험한 작업 하나를 끝냈다.
+**최근 완료:** **B-04 블록 도메인 ✅** (B-05 예산 계산기에 이어)
+정산 테스트를 쓰다 **자동 정산이 통계를 부풀리는 버그를 찾아 고쳤다.** — 이 프로젝트에서 가장 위험한 작업 하나를 끝냈다.
 정책 §2.1 네 규칙을 전부 구현했고, 구현 중 **정책의 구조적 구멍을 찾아 사용자 승인으로 메웠다** (N-026).
 
 **지금 코드가 어디까지 있나**
@@ -23,7 +24,7 @@
 apps/web                    Next 16 부팅 확인 (임시 화면) + enum 정합성 테스트
 packages/domain/time        ⭐ 존 유틸 · DATE 컬럼 변환 (29 테스트)
 packages/domain/budget      ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증 (53 테스트)
-packages/domain/block       🟡 생성 검증 · 상태 전이 (23 테스트) + 정산 초안(settlement.ts, 테스트 없음)
+packages/domain/block       ⭐ 생성 검증 · 상태 전이 · 정산 (41 테스트)
 packages/domain/types       CategoryTag · BlockStatus · SourceType · CompletionType
 packages/domain/errors.ts   에러 코드 7종
 packages/db                 schema.prisma (6 테이블) + 초기 마이그레이션 SQL
@@ -33,17 +34,17 @@ eslint.config.mjs           시간·XSS·서버경계 방어 규칙
 **확인된 것 (실측)**
 - 도메인 테스트 **82건**이 TZ **UTC · KST · New_York · Kiritimati(UTC+14)** 에서 동일 통과
 - 예산 계산기: 합집합 · 실측 우선 귀속 · 자정 분할 · 24시간 상한 전부 테스트로 고정
+- ⚠️ **자동 정산 버그를 잡았다** — 22:00 시작 60분 블록을 00:05 배치가 닫으면 집중 125분이 기록됐다.
+  `actualFocusMinutes ≤ endTime − startTime` 불변식을 코드로 강제 (N-027)
 - **불변식**: 태그별 합계의 총합 == 점유 합계 (계산 구조상 자동 성립)
 - ⚠️ 정책 §2.1 규칙 3 은 원래 **영원히 발화하지 않는 규칙**이었다 → N-026 으로 판정 기준 확정
 - ⚠️ 테스트계획 §2.2 #9·#10 의 산술이 모순이었다 → 경계 원칙으로 재작성
 
 **다음에 할 일 (순서대로):**
 
-1. **B-04 마무리** — `settlement.ts` 는 작성됐으나 **테스트가 없다.**
-   테스트계획 #15·#18·#19·#20 을 `settlement.test.ts` 로 옮기는 것부터 한다.
-   특히 자정 배치가 어제 블록을 `now` 로 닫으면 안 되는 것(계획 종료로 캡)을 고정할 것
-2. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체
-3. **O-05 공통 규약 골격** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
+1. **U-02 토큰 CSS + 루트 셸** — 확정 시안 토큰을 `styles/tokens.css` 로. 임시 화면 교체.
+   도메인만 4연속으로 쌓았다. 눈에 보이는 것을 한 번 세울 차례다
+2. **O-05 공통 규약 골격** — Zod · `withMember` · 에러 매핑 (⚠️ Next 16 은 `await cookies()`)
 4. **O-04~O-06** 배포 — Q-011 답이 오면
 
 **블로커:** 없음
@@ -55,7 +56,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 프로덕션 빌드 — 모든 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (109건)
+pnpm test         전 패키지 (127건)
 pnpm db:generate  Prisma 클라이언트 재생성 (postinstall 이 자동 실행)
 pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 ```
@@ -80,7 +81,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 |---|---|---|---|
 | **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 2 / 6 | 🟡 |
-| **2** | 핵심 도메인 · API | 3 / 9 | 🟡 **지금 여기** |
+| **2** | 핵심 도메인 · API | 4 / 9 | 🟡 **지금 여기** |
 | **3** | 구글 캘린더 연동 | 0 / 5 | ⬜ |
 | **4** | 화면 구현 | 1 / 9 | ⬜ |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
@@ -131,7 +132,7 @@ pnpm db:migrate   ⛔ Supabase 연결 필요 (Q-011)
 |---|---|---|---|---|---|
 | B-05 | **24시간 예산 계산기 (구간 병합)** ⭐⭐ | 개발 | `packages/domain/budget/**` (53 테스트) | — | ✅ |
 | B-16 | 시간 유틸 (`APP_ZONE` · workDate · weekStartDate) ⭐ | 개발 | `packages/domain/time/**` (19 테스트) | — | ✅ |
-| B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**` (23 테스트) · 서비스는 미착수 | B-16, O-03 | 🟡 |
+| B-04 | 블록 생명주기 (생성·시작·정지·재개·완료) | 개발 | `packages/domain/block/**` (41 테스트). 서비스 계층은 O-05 이후 | B-16, O-03 | ✅ |
 | B-06 | **이관 트랜잭션 (ActiveBlock → TimeLog, 멱등)** ⭐⭐ | 개발 | `src/server/services/settlement.ts` | B-04 | ⬜ |
 | B-03 | 구글 로그인 + 세션 쿠키 (N-014) | 개발 | `app/api/auth/google/**` | O-05, **Q-011** | ⛔ |
 | B-07 | 통계 집계 (일/주/월/년) | 개발 | `src/server/services/statistics.ts` | O-03 | ⬜ |
