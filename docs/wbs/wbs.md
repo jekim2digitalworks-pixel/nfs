@@ -115,8 +115,7 @@ apps/web/src/
 서비스와 필터는 다 만들었다. 남은 건 **연결 세 군데 + 실검증**이다.
 
 - [x] `app/api/calendar/sync/route.ts` — 완료 (실패해도 200 + status 로 내려준다)
-- [ ] 하루 화면 헤더 버튼 — 지금 설정 링크 자리에 "캘린더 다시 불러오기"(화면정의서 S-03).
-      클라이언트 컴포넌트에서 `postJson('/api/calendar/sync')` → `router.refresh()`
+- [x] 하루 화면 헤더 버튼 — 완료. 결과를 문구로 구분해 말한다(미연동/토큰만료/N개 불러옴)
 - [ ] `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) → `syncCalendarWeek` 호출로 교체.
       이러면 마감의 `SYNCED` 가 살아난다 (N-032 의 빈 자리)
 - [ ] 실검증: 구글 캘린더에 테스트 일정(일반/종일/거절/9시간)을 넣고 동기화 →

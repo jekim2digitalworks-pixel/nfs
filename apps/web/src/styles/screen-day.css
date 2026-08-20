@@ -360,3 +360,38 @@
         }
     }
 }
+
+/* ── 캘린더 다시 불러오기 (B-11) ──────────────────────
+   메시지는 헤더 아래로 흐르되 레이아웃을 밀지 않는다 — 절대 배치로 띄운다 */
+.cal-sync {
+    position: relative;
+}
+.cal-sync-msg {
+    position: absolute;
+    top: 42px;
+    right: 0;
+    width: max-content;
+    max-width: 62vw;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-md);
+    background: var(--s2);
+    backdrop-filter: blur(20px);
+    color: var(--tx2);
+    font-size: var(--t-caption);
+    letter-spacing: -0.01em;
+    text-align: right;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .cal-sync-spin {
+        animation: cal-sync-turn 0.9s linear infinite;
+        transform-origin: center;
+    }
+    @keyframes cal-sync-turn {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+}

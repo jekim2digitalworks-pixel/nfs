@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import {
     minutesFromStartOfDay,
     minutesUntilMidnight,
@@ -11,6 +10,7 @@ import { listBlocksOfDate, loadDayBudget } from '@/server/services/block';
 import { loadDayOccupants } from '@/server/services/day-occupants';
 import { BudgetMeter } from '@/components/day/BudgetMeter';
 import { BlockSheet, type SerializedOccupant } from '@/components/day/BlockSheet';
+import { CalendarSyncButton } from '@/components/day/CalendarSyncButton';
 import { Timeline, type TimelineBlock, type TimelineEvent } from '@/components/day/Timeline';
 
 /**
@@ -152,17 +152,8 @@ export default async function DayPage({
                         오늘
                         <span>{now.toFormat('M월 d일 cccc')}</span>
                     </h1>
-                    <Link className="icon-btn" href="/settings" aria-label="설정">
-                        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
-                            <circle cx="8.5" cy="8.5" r="2.6" stroke="currentColor" strokeWidth="1.5" />
-                            <path
-                                d="M8.5 1v2M8.5 14v2M16 8.5h-2M3 8.5H1M13.8 3.2l-1.4 1.4M4.6 12.4l-1.4 1.4M13.8 13.8l-1.4-1.4M4.6 4.6 3.2 3.2"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                    </Link>
+                    {/* 캘린더 다시 불러오기 (B-11 · 화면정의서 S-03 헤더) */}
+                    <CalendarSyncButton />
                 </header>
 
                 <BudgetMeter
