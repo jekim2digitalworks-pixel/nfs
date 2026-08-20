@@ -41,12 +41,22 @@ function SignedOut() {
     );
 }
 
-export default async function DayPage() {
+export default async function DayPage({
+    // ⚠️ Next 16 에서 searchParams 는 Promise 다 (N-024)
+    searchParams,
+}: {
+    searchParams: Promise<{ new?: string }>;
+}) {
     const memberId = await currentMemberId();
 
     if (memberId === null) {
         return <SignedOut />;
     }
+
+    // 집중 화면의 "계속 이어서"와 집중 탭(진행 중 블록 없음)이 여기로 보낸다.
+    // 시트를 별도 라우트로 만들지 않는 이유: 뒤의 하루 화면이 맥락이기 때문이다
+    const query = await searchParams;
+    const shouldOpenSheet = query.new === '1';
 
     const now = nowInAppZone();
     const workDate = workDateOf(now);
@@ -187,6 +197,7 @@ export default async function DayPage() {
                     workDate={workDate}
                     nowLocal={toAppLocalString(now)}
                     occupants={serializedOccupants}
+                    defaultOpen={shouldOpenSheet}
                 />
             </main>
         </>

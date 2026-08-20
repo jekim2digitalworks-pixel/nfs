@@ -42,6 +42,8 @@ export interface SerializedOccupant {
 }
 
 interface BlockSheetProps {
+    /** 집중 화면의 "계속 이어서"·집중 탭이 `?new=1` 로 들어오면 열린 채로 시작한다 */
+    defaultOpen?: boolean;
     workDate: string;
     /** 서버 기준 지금 (앱 타임존 로컬 문자열) */
     nowLocal: string;
@@ -88,9 +90,9 @@ function toOccupants(serialized: SerializedOccupant[]): BudgetOccupant[] {
     return occupants;
 }
 
-export function BlockSheet({ workDate, nowLocal, occupants }: BlockSheetProps) {
+export function BlockSheet({ workDate, nowLocal, occupants, defaultOpen = false }: BlockSheetProps) {
     const router = useRouter();
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(defaultOpen);
     const [categoryTag, setCategoryTag] = useState<CategoryTag | null>(null);
     const [title, setTitle] = useState('');
     const [lengthMinutes, setLengthMinutes] = useState<number>(60);
@@ -240,7 +242,8 @@ export function BlockSheet({ workDate, nowLocal, occupants }: BlockSheetProps) {
             setTitle('');
 
             if (startImmediately) {
-                router.push('/focus');
+                // 방금 만든 블록의 집중 화면(S-04)으로 바로 넘어간다
+                router.push(`/focus/${payload.data.activeBlockId}`);
                 return;
             }
             // 서버 컴포넌트를 다시 그려 예산·타임라인을 갱신한다

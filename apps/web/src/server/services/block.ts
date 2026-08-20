@@ -220,6 +220,27 @@ export async function completeBlock(
 }
 
 /** 진행 중인 블록. 탭 전환·재진입·포커스 복귀 시 호출한다 (API명세 §2) */
+/**
+ * 블록 하나를 읽는다. 집중 화면(S-04)이 URL 의 id 로 부른다.
+ *
+ * ⚠️ `memberId` 조건을 반드시 건다. URL 의 id 를 신뢰하지 않는다 (아키텍처 §9).
+ *    없으면 남의 블록 제목이 남의 화면에 뜬다.
+ */
+export async function findBlockOfMember(
+    memberId: bigint,
+    activeBlockId: bigint,
+    now: DateTime,
+): Promise<BlockView | null> {
+    const row = await prisma.activeBlock.findFirst({
+        where: { activeBlockId: activeBlockId, memberId: memberId },
+    });
+
+    if (row === null) {
+        return null;
+    }
+    return toView(toSnapshot(row), now);
+}
+
 export async function findCurrentBlock(memberId: bigint, now: DateTime): Promise<BlockView | null> {
     const row = await prisma.activeBlock.findFirst({
         where: { memberId: memberId, blockStatus: { in: ['RUNNING', 'PAUSED'] } },

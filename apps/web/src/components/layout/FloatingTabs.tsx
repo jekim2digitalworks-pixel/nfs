@@ -36,6 +36,19 @@ function isCurrentTab(pathname: string, href: string): boolean {
 export function FloatingTabs() {
     const pathname = usePathname();
 
+    /**
+     * ⭐ **집중 화면(S-04)에서는 탭을 숨긴다** (화면정의서 §1).
+     *
+     * 몰입 화면이라 크롬을 없앤다. 나가는 길은 좌상단 닫기 하나뿐이고,
+     * 그게 "지금 하던 걸 접는다"는 의사 표시가 된다 —
+     * 탭을 남겨두면 실수로 화면을 벗어나 타이머만 돌게 된다.
+     *
+     * `/focus` (진입 분기)는 즉시 리다이렉트되므로 여기서 걸러도 보이지 않는다.
+     */
+    if (pathname.startsWith('/focus/')) {
+        return null;
+    }
+
     return (
         <nav className="tabs" aria-label="주요 화면">
             {TABS.map(function renderTab(tab) {

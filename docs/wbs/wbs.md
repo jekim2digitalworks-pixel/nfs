@@ -7,15 +7,15 @@
 |---|---|
 | 최종 갱신 | **2026-08-20** (세션 종료 시점) |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **30 / 44 작업 완료 (68%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **32 / 44 작업 완료 (73%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
 ## 🔴 현재 상태
 
-**지금 단계:** **Phase 2 완료 · Phase 4 진행 중** — 배치 2종이 다 붙었다. 남은 건 화면과 캘린더 연동
+**지금 단계:** **Phase 2 완료 · Phase 4 마무리 중** — 핵심 3화면(리포트·하루·집중)이 다 돈다
 
-**마지막 커밋:** `7e31f13` feat(B-09) · 2026-08-20 → **이 세션에서 D-04·U-06 커밋 예정**
+**마지막 커밋:** `154c362` feat(D-04 · U-06) · 2026-08-20 → **이 세션에서 U-05·F-01 커밋 예정**
 
 ⛔ **이 PC 에서 Vercel 배포가 막혀 있다.** 사내망(DNS `V-CWAD1.coway.io`)이 `vercel.com` ·
 `api.vercel.com` · `*.vercel.app` 의 TLS 를 끊는다(curl 35). github.com 은 정상.
@@ -32,7 +32,7 @@
 자정 배치   POST /api/jobs/daily-settlement — 어제 이전 블록 전부 정산. 실DB 검증 완료
 주간 마감   POST /api/jobs/weekly-closing — 기한 넘긴 주를 동결. 실DB 검증 완료
 통계        기간별 집계 · 태그별 · 월별 추이. 실DB 숫자 대조 완료
-화면        리포트 · 하루(예산미터·타임라인) · **블록 생성 시트**(미리보기·예산 초과)
+화면        리포트 · 하루(예산미터·타임라인) · 블록 생성 시트 · **집중(다이얼·서버 동기 타이머)**
 ```
 
 **테스트 193건** (도메인 175 + 웹 18) · lint · typecheck · build 전부 통과
@@ -57,13 +57,15 @@ apps/web/src/
   server/services/            member · statistics · block · settlement · closing · day-occupants
   app/api/                    health · me · auth/* · blocks/* · statistics/* · jobs/{daily-settlement,weekly-closing}
   app/page.tsx                S-02 리포트  ✅
-  app/day/page.tsx            S-03 하루    ✅
-  app/focus/page.tsx          S-04 집중    ⬜ 껍데기
-  components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet}
-  styles/                     tokens · base · components · screen-report · screen-day · screen-block-sheet
+  app/day/page.tsx            S-03 하루    ✅  (?new=1 이면 생성 시트가 열린 채로 뜬다)
+  app/focus/page.tsx          진입 분기    ✅  → /focus/{id} 또는 /day?new=1
+  app/focus/[blockId]/        S-04 집중    ✅
+  hooks/                      useServerClock(오프셋) · useBlockTimer(표시 전용)  ⭐
+  components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet} · focus/FocusStage
+  styles/                     tokens · base · components · screen-{report,day,block-sheet,focus}
 ```
 
-### ✅ 이 세션에서 한 것 (2026-08-20) — B-08 · B-09 · D-04 · U-06
+### ✅ 이 세션에서 한 것 (2026-08-20) — B-08 · B-09 · D-04 · U-06 · U-05 · F-01
 
 **B-08 자정 정산** (커밋 `2665ea8`)
 - `api/jobs/daily-settlement/route.ts` + `services/settlement.ts` 의 `runDailySettlement`
@@ -87,36 +89,45 @@ apps/web/src/
 - 🐛 **`screen-day.css` 가 어디에서도 import 되지 않고 있었다** (U-04 부터). 하루 화면이 스타일 없이
   렌더링되고 있었다. `globals.css` 에 추가하고 번들 CSS 를 실제로 grep 해서 확인했다
 
+**U-05 집중 화면 · F-01 타이머**
+- `app/focus/[blockId]/page.tsx` + `components/focus/FocusStage.tsx` + `styles/screen-focus.css`
+- `hooks/useServerClock.ts`(오프셋) · `hooks/useBlockTimer.ts`(표시 전용) — ⭐ **누적하지 않는다.**
+  매 틱마다 `기준 집중초 + (지금 − 기준 시각)` 을 처음부터 다시 계산한다 (**N-034**)
+- `/focus` 는 화면이 아니라 분기다 — 진행 중이면 `/focus/{id}`, 없으면 `/day?new=1`(시트가 열린 채)
+- 집중 화면에서는 **하단 탭이 사라진다.** 나가는 길은 좌상단 닫기뿐이다
+- 시안 C 의 "구글 캘린더에도 남깁니다" 체크박스는 **넣지 않았다** — 쓰기 파이프(B-15)가 Phase 2 다
+
 ### 🔜 다음에 할 일 (순서대로)
 
 **0. 배포 + GitHub 시크릿 등록** ⛔ **다른 망에서 해야 한다** (사내망이 Vercel 을 막는다)
 
 크론 워크플로 2종은 만들었지만 **아직 한 번도 실제로 돌지 않았다.** 로컬 dev 로만 검증했다.
 
-1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09·U-06 만큼 뒤처져 있다
+1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09·U-06·U-05 만큼 뒤처져 있다
 2. Vercel 프로젝트 환경변수에 `CRON_SECRET` 확인 (로컬 `.env.local` 과 같은 값이어야 한다)
 3. GitHub 레포 Settings → Secrets → `APP_URL`(끝에 `/` 없이), `CRON_SECRET`
 4. Actions 탭에서 **두 워크플로를 손으로 한 번씩 돌린다** (`workflow_dispatch`). 크론을 기다리지 않는다
    - 자정 정산: 어제 블록이 없으면 `processedMemberCount: 0` 이 정상
    - 주간 마감: 지난주 캘린더 일정이 없으면 아무것도 안 닫는 게 정상
 
-**1. 시트를 실제로 눌러보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
-   서버 쪽(생성 API·예산 검증·SSR)과 계산 로직(파리티 테스트)은 확인했다.
-   `pnpm dev` → `/day` 에서 FAB → 칩을 눌러 미리보기 숫자가 따라오는지 눈으로 볼 것
+**1. 손으로 한 바퀴 돌려보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
+   서버 경로(SSR·전이 API·리다이렉트)는 전부 확인했지만 다음 두 가지는 눈으로 봐야 한다:
+   - `/day` FAB → 칩을 누를 때 미리보기 숫자가 따라오는가
+   - `/focus/{id}` 다이얼이 **매초 줄어드는가**, 탭을 백그라운드로 뒀다 돌아왔을 때 값이 튀지 않는가
 
-**2. U-05 집중 화면** — 시트의 `지금 시작하기` 가 지금은 껍데기 `/focus` 로 간다.
-   `/focus/[blockId]` 가 생기면 그리로 바꾼다 (`BlockSheet.tsx` 의 `router.push`)
-
-**3. B-11 캘린더 동기화** — 이게 붙어야 주간 마감의 1단계와 `SYNCED` 가 살아난다.
+**2. B-11 캘린더 동기화** — 이게 붙어야 주간 마감의 1단계와 `SYNCED` 가 살아난다.
    `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) 자리에 연결한다
 
-**4. F-01 타이머** · **D-03 시안**(Q-010 먼저)
+**3. F-02 API 레이어** (`lib/api.ts`) — 지금 `fetch` + 봉투 해석이 시트·집중 두 곳에 복사돼 있다.
+   세 번째가 생기기 전에 한 곳으로 모은다
+
+**4. D-03 시안**(Q-010 먼저) · **D-05·D-06 시안** · **T-02·T-03 테스트**
 
 ### ⚠️ 알아둘 것
 
 | 항목 | 상태 |
 |---|---|
-| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06** 이 안 올라갔다 |
+| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06·U-05·F-01** 이 안 올라갔다 |
 | ⛔ **이 PC 에서 Vercel 이 안 열린다** | 사내망(DNS `V-CWAD1.coway.io`)이 vercel 도메인의 TLS 를 끊는다 — `npx vercel --prod` 가 `fetch failed`, curl 은 35. DNS 는 정상 해석되고 github 는 200. **다른 망에서 배포할 것** (08-19·08-20 이틀 연속 동일) |
 | **크론이 아직 안 돈다** | 워크플로 2종 작성 완료. GitHub 시크릿(`APP_URL`·`CRON_SECRET`) 미등록 + 배포 전이다 |
 | `gh` CLI 가 없다 | 그래서 시크릿 등록을 대신 해줄 수 없다. 필요하면 `npm i -g gh` 대신 GitHub 웹 UI 가 빠르다 |
@@ -172,7 +183,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
 | **2** | 핵심 도메인 · API | 9 / 9 | ✅ **완료** |
 | **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
-| **4** | 화면 구현 | 5 / 9 | 🟡 **지금 여기** |
+| **4** | 화면 구현 | 7 / 9 | 🟡 **지금 여기** |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
 | **6** | 품질 · 운영 | 1 / 4 | ⬜ |
 
@@ -257,9 +268,9 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | U-02 | 토큰 CSS + 루트 셸 + 하단 탭 | 퍼블 | `src/styles/*.css`, `app/layout.tsx`, `components/layout/FloatingTabs` | U-01 | ✅ |
 | U-03 | 리포트 화면 (시안 A → JSX) | 퍼블 | `app/page.tsx`, `components/{chart,report}/**`, `lib/format.ts` | U-02, D-02 | ✅ |
 | U-04 | 하루 화면 (시안 B → JSX) | 퍼블 | `app/day/page.tsx`, `components/day/{BudgetMeter,Timeline}` | U-02, D-02 | ✅ |
-| U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` | U-02, D-02 | ⬜ |
+| U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` · `components/focus/FocusStage.tsx` · `styles/screen-focus.css` | U-02, D-02 | ✅ |
 | U-06 | 블록 생성 시트 | 퍼블 | `components/day/BlockSheet.tsx` · `styles/screen-block-sheet.css` | D-04 | ✅ |
-| F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/useServerClock.ts` | B-04 | ⬜ |
+| F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/{useServerClock,useBlockTimer}.ts` | B-04 | ✅ |
 | F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` | B-14 | ⬜ |
 | F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/**` | B-07 | ⬜ |
 

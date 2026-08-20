@@ -1,0 +1,320 @@
+/*
+ * S-04 집중 (U-05 · 시안 C)
+ *
+ * 이 화면엔 크롬이 없다. 오브젝트가 하나뿐이다.
+ * 다른 화면과 달리 바탕이 한 단계 더 어둡고(--bg-2), 광원이 카테고리 색이다.
+ */
+
+.screen-focus {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    background: var(--bg-2);
+    padding: 0;
+}
+
+/* 앰비언트 — 카테고리 색이 다이얼 뒤에서 빛난다 (디자인 §2.4) */
+.focus-bloom {
+    position: fixed;
+    left: -45%;
+    right: -45%;
+    top: 14%;
+    height: 64%;
+    pointer-events: none;
+    background: radial-gradient(
+        42% 42% at 50% 50%,
+        color-mix(in srgb, var(--c, var(--dev)) 34%, transparent),
+        transparent 70%
+    );
+    filter: blur(46px);
+}
+/* 가장자리를 눌러 시선을 가운데로 모은다 */
+.focus-grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background: radial-gradient(120% 90% at 50% 42%, transparent 42%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+/* ── 상단 : 최소한의 흔적만 ───────────────────────── */
+.focus-top {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px var(--pad-screen) 0;
+}
+.focus-left-cap {
+    font-size: 12px;
+    color: var(--tx3);
+    letter-spacing: -0.01em;
+}
+.focus-left-cap b {
+    color: var(--tx2);
+    font-weight: 600;
+}
+.focus-close {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--tx2);
+    display: grid;
+    place-items: center;
+    backdrop-filter: blur(20px);
+}
+
+/* ── 무대 ─────────────────────────────────────── */
+.focus-stage {
+    position: relative;
+    z-index: 4;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px var(--pad-card) 0;
+    text-align: center;
+}
+
+.focus-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 13px;
+    border: 1px solid color-mix(in srgb, var(--c, var(--dev)) 34%, transparent);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--c, var(--dev)) 16%, transparent);
+    font-size: var(--t-label);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+.focus-tag i {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: var(--c, var(--dev));
+    box-shadow: 0 0 10px var(--c, var(--dev));
+}
+.focus-title {
+    margin: 16px 0 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+}
+.focus-meta {
+    margin: 6px 0 0;
+    font-size: var(--t-label);
+    color: var(--tx3);
+    letter-spacing: -0.01em;
+}
+
+/* 다이얼 — 이 화면의 유일한 오브젝트 */
+.dial {
+    position: relative;
+    width: 284px;
+    height: 284px;
+    max-width: 78vw;
+    max-height: 78vw;
+    margin-top: 30px;
+}
+.dial svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.dial-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+}
+.dial-timer {
+    margin: 0;
+    font-size: var(--t-timer);
+    font-weight: 500;
+    letter-spacing: -0.055em;
+    line-height: 1;
+}
+.dial-cap {
+    margin: 9px 0 0;
+    font-size: var(--t-caption);
+    font-weight: 500;
+    color: var(--tx3);
+    letter-spacing: 0.02em;
+}
+/* 계획을 채우면 아크가 꽉 차고 숫자가 초과 시간으로 바뀐다 */
+.dial--over .dial-timer {
+    color: var(--now);
+}
+
+.cycles {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 26px;
+}
+.cycles i {
+    width: 34px;
+    height: 4px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.13);
+}
+.cycles i.on {
+    background: var(--c, var(--dev));
+    box-shadow: 0 0 12px var(--c, var(--dev));
+}
+.cycles span {
+    margin-left: 6px;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+    letter-spacing: -0.01em;
+}
+
+.focus-state {
+    margin: 18px 0 0;
+    font-size: var(--t-label);
+    color: var(--tx2);
+    letter-spacing: -0.01em;
+}
+
+/* ── 컨트롤 ───────────────────────────────────── */
+.focus-controls {
+    position: relative;
+    z-index: 6;
+    padding: 0 var(--pad-card) calc(28px + env(safe-area-inset-bottom));
+}
+.focus-buttons {
+    display: flex;
+    gap: 11px;
+}
+.focus-buttons .btn:disabled {
+    opacity: 0.4;
+}
+.focus-after {
+    margin: 14px 0 0;
+    text-align: center;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+    letter-spacing: -0.01em;
+}
+.focus-after b {
+    color: var(--tx2);
+    font-weight: 500;
+}
+.focus-error {
+    margin: 0 0 11px;
+    padding: 10px 14px;
+    border: 1px solid color-mix(in srgb, var(--warn) 38%, transparent);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--warn) 11%, transparent);
+    color: var(--warn);
+    font-size: var(--t-label);
+    text-align: center;
+}
+
+/* ── 완료 후 ──────────────────────────────────── */
+.focus-done {
+    position: relative;
+    z-index: 6;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--pad-card) calc(28px + env(safe-area-inset-bottom));
+    text-align: center;
+}
+.focus-done-cap {
+    margin: 0;
+    font-size: var(--t-label);
+    color: var(--tx3);
+    letter-spacing: -0.01em;
+}
+.focus-done-num {
+    margin: 10px 0 0;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+}
+.focus-done-hint {
+    margin: 12px 0 0;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+}
+.focus-done-acts {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    align-self: stretch;
+    margin-top: 36px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .focus-tag,
+    .focus-title,
+    .focus-meta,
+    .dial,
+    .cycles {
+        animation: focus-up 0.7s var(--ease) both;
+    }
+    .focus-title {
+        animation-delay: 0.05s;
+    }
+    .focus-meta {
+        animation-delay: 0.08s;
+    }
+    .dial {
+        animation-delay: 0.12s;
+    }
+    .cycles {
+        animation-delay: 0.2s;
+    }
+    @keyframes focus-up {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    /* 아크는 매초 갱신된다. 트랜지션으로 부드럽게 잇되 길면 숫자와 어긋난다 */
+    .dial-arc {
+        transition: stroke-dashoffset 0.4s linear;
+    }
+    /* 호흡 — 정지 중에는 숨을 멈춘다 */
+    .dial-halo {
+        animation: focus-breathe 6s ease-in-out infinite;
+    }
+    @keyframes focus-breathe {
+        0%,
+        100% {
+            opacity: 0.42;
+        }
+        50% {
+            opacity: 0.85;
+        }
+    }
+    .focus-bloom {
+        animation: focus-glow 6s ease-in-out infinite;
+    }
+    @keyframes focus-glow {
+        0%,
+        100% {
+            opacity: 0.85;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+}
