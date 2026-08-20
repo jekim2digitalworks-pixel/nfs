@@ -75,6 +75,23 @@ export function parseAppDate(dateString: string): DateTime {
 }
 
 /**
+ * 오프셋이 붙은 ISO 문자열(`2026-08-19T14:00:00+09:00`)을 앱 타임존으로 옮긴다.
+ *
+ * 외부 시스템(구글 캘린더)이 주는 시각 전용이다. 그들은 자기 존으로 말하고,
+ * 우리는 한국 시간으로만 생각한다. 그 번역이 일어나는 자리를 여기 하나로 고정한다.
+ *
+ * ⚠️ 오프셋이 없는 문자열에는 쓰지 않는다 — 그건 `parseAppDateTime` 이다.
+ */
+export function instantFromIsoString(isoString: string): DateTime {
+    const parsed = DateTime.fromISO(isoString, { setZone: true });
+
+    if (!parsed.isValid) {
+        throw new Error(`시각 형식이 올바르지 않습니다: ${isoString}`);
+    }
+    return parsed.setZone(APP_ZONE);
+}
+
+/**
  * '2026-08-19T14:00:00' 같은 존 없는 로컬 시각 문자열을 앱 타임존으로 해석한다.
  *
  * API는 존 표기 없는 로컬 시각을 주고받는다 (docs/개발/03-API명세.md).

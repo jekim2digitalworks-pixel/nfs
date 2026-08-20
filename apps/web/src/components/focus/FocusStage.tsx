@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORY_TAG_LABELS, pomodoroCyclesOf, type CategoryTag } from '@nfs/domain';
 import { formatKoreanDuration } from '@/lib/format';
+import { getJson, postJson } from '@/lib/api';
 import { useServerClock } from '@/hooks/useServerClock';
 import { useBlockTimer } from '@/hooks/useBlockTimer';
 import { parseAppDateTime } from '@nfs/domain/time';
@@ -67,26 +68,19 @@ export function FocusStage({ block, remainingBudgetMinutes }: FocusStageProps) {
     /** 화면이 돌아왔을 때 서버에게 다시 묻는다 — 숨겨진 동안 잰 값은 거짓이다 */
     const resyncFromServer = useCallback(
         function resync() {
-            fetch(`/api/blocks/current`)
-                .then(function readBody(response) {
-                    return response.json();
-                })
-                .then(function applyBody(payload) {
-                    if (payload === null || payload.success !== true || payload.data === null) {
-                        return;
-                    }
-                    const current = payload.data as FocusBlockView;
+            getJson<FocusBlockView | null>('/api/blocks/current').then(function apply(result) {
+                // 재동기화 실패는 화면을 막지 않는다. 다음 기회에 다시 맞춘다
+                if (!result.ok || result.data === null) {
+                    return;
+                }
 
-                    // 그 사이 다른 기기에서 완료됐을 수 있다. 그러면 하루로 돌려보낸다
-                    if (current.activeBlockId !== snapshot.activeBlockId) {
-                        router.replace('/day');
-                        return;
-                    }
-                    setSnapshot(current);
-                })
-                .catch(function ignore() {
-                    // 재동기화 실패는 화면을 막지 않는다. 다음 기회에 다시 맞춘다
-                });
+                // 그 사이 다른 기기에서 완료됐을 수 있다. 그러면 하루로 돌려보낸다
+                if (result.data.activeBlockId !== snapshot.activeBlockId) {
+                    router.replace('/day');
+                    return;
+                }
+                setSnapshot(result.data);
+            });
         },
         [snapshot.activeBlockId, router],
     );
@@ -140,39 +134,25 @@ export function FocusStage({ block, remainingBudgetMinutes }: FocusStageProps) {
         setErrorMessage(null);
 
         try {
-            const response = await fetch(`/api/blocks/${snapshot.activeBlockId}/${action}`, {
-                method: 'POST',
-            });
-            const payload = await response.json();
+            const result = await postJson<FocusBlockView & { actualFocusMinutes?: number }>(
+                `/api/blocks/${snapshot.activeBlockId}/${action}`,
+            );
 
-            if (!response.ok || payload.success !== true) {
-                let message = '처리하지 못했습니다';
-
-                if (payload !== null && typeof payload === 'object' && 'error' in payload) {
-                    const error = payload.error;
-
-                    if (error !== null && typeof error === 'object' && 'message' in error) {
-                        if (typeof error.message === 'string') {
-                            message = error.message;
-                        }
-                    }
-                }
-                setErrorMessage(message);
+            if (!result.ok) {
+                setErrorMessage(result.message);
                 return;
             }
 
             if (action === 'complete') {
                 // 정산은 되돌릴 수 없다. 결과를 보여주고 사용자가 다음을 고르게 한다
                 let recordedMinutes = 0;
-                if (typeof payload.data.actualFocusMinutes === 'number') {
-                    recordedMinutes = payload.data.actualFocusMinutes;
+                if (typeof result.data.actualFocusMinutes === 'number') {
+                    recordedMinutes = result.data.actualFocusMinutes;
                 }
                 setSettled({ actualFocusMinutes: recordedMinutes });
                 return;
             }
-            setSnapshot(payload.data as FocusBlockView);
-        } catch {
-            setErrorMessage('네트워크가 불안정합니다. 다시 시도해 주세요');
+            setSnapshot(result.data);
         } finally {
             setIsBusy(false);
         }

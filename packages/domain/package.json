@@ -10,7 +10,8 @@
     "./types": "./src/types/index.ts",
     "./budget": "./src/budget/index.ts",
     "./block": "./src/block/index.ts",
-    "./closing": "./src/closing/index.ts"
+    "./closing": "./src/closing/index.ts",
+    "./calendar": "./src/calendar/index.ts"
   },
   "scripts": {
     "test": "vitest run",

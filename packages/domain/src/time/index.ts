@@ -5,6 +5,7 @@ export {
     weekStartDateOf,
     parseAppDate,
     parseAppDateTime,
+    instantFromIsoString,
     toAppLocalString,
     minutesUntilMidnight,
     minutesFromStartOfDay,

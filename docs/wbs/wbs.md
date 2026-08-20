@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-20** (세션 종료 시점) |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **32 / 44 작업 완료 (73%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **35 / 44 작업 완료 (80%)** · MVP 범위는 41작업 (Phase 5 제외) · B-11 진행 중 |
 
 ---
 
@@ -15,7 +15,7 @@
 
 **지금 단계:** **Phase 2 완료 · Phase 4 마무리 중** — 핵심 3화면(리포트·하루·집중)이 다 돈다
 
-**마지막 커밋:** `154c362` feat(D-04 · U-06) · 2026-08-20 → **이 세션에서 U-05·F-01 커밋 예정**
+**마지막 커밋:** `8d6c91e` feat(U-05 · F-01) · 2026-08-20 → **이 세션에서 F-02·B-11(부분) 커밋 예정**
 
 ⛔ **이 PC 에서 Vercel 배포가 막혀 있다.** 사내망(DNS `V-CWAD1.coway.io`)이 `vercel.com` ·
 `api.vercel.com` · `*.vercel.app` 의 TLS 를 끊는다(curl 35). github.com 은 정상.
@@ -35,7 +35,7 @@
 화면        리포트 · 하루(예산미터·타임라인) · 블록 생성 시트 · **집중(다이얼·서버 동기 타이머)**
 ```
 
-**테스트 193건** (도메인 175 + 웹 18) · lint · typecheck · build 전부 통과
+**테스트 205건** (도메인 187 + 웹 18) · lint · typecheck · build 전부 통과
 
 ### 📁 코드 지도
 
@@ -110,7 +110,20 @@ apps/web/src/
    - 자정 정산: 어제 블록이 없으면 `processedMemberCount: 0` 이 정상
    - 주간 마감: 지난주 캘린더 일정이 없으면 아무것도 안 닫는 게 정상
 
-**1. 손으로 한 바퀴 돌려보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
+**1. B-11 캘린더 동기화 마무리** 🟡 ← **여기서 이어받는다**
+
+서비스와 필터는 다 만들었다. 남은 건 **연결 세 군데 + 실검증**이다.
+
+- [ ] `app/api/calendar/sync/route.ts` — `withMember` + `syncCurrentWeek(memberId, nowInAppZone())`
+- [ ] 하루 화면 헤더 버튼 — 지금 설정 링크 자리에 "캘린더 다시 불러오기"(화면정의서 S-03).
+      클라이언트 컴포넌트에서 `postJson('/api/calendar/sync')` → `router.refresh()`
+- [ ] `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) → `syncCalendarWeek` 호출로 교체.
+      이러면 마감의 `SYNCED` 가 살아난다 (N-032 의 빈 자리)
+- [ ] 실검증: 구글 캘린더에 테스트 일정(일반/종일/거절/9시간)을 넣고 동기화 →
+      `imported_calendar_event` 의 `exclusion_reason` 확인. **googleapis.com 은 이 망에서 열린다**(확인함)
+- [ ] ⚠️ 리프레시 토큰이 7일 만료(N-028)라 `invalid_grant` 면 재로그인부터
+
+**2. 손으로 한 바퀴 돌려보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
    서버 경로(SSR·전이 API·리다이렉트)는 전부 확인했지만 다음 두 가지는 눈으로 봐야 한다:
    - `/day` FAB → 칩을 누를 때 미리보기 숫자가 따라오는가
    - `/focus/{id}` 다이얼이 **매초 줄어드는가**, 탭을 백그라운드로 뒀다 돌아왔을 때 값이 튀지 않는가
@@ -145,7 +158,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 빌드 — 전 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (193건)
+pnpm test         전 패키지 (205건)
 pnpm db:migrate   스키마 변경 시
 
 npx vercel --prod --yes      ⭐ 프로덕션 배포 (Git 푸시로는 안 된다)
@@ -253,7 +266,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | B-10 | 구글 OAuth (로그인 + 읽기 스코프 · 토큰 암호화) | 개발 | `server/auth/google-oauth.ts`, `token-cipher.ts` | B-03 | ✅ |
-| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `src/server/services/calendar-sync.ts` | B-10 | ⬜ |
+| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `services/calendar-sync.ts` · `packages/domain/calendar/**` (12 테스트) | B-10 | 🟡 |
 | B-12 | 색상(colorId) → 태그 매핑 | 개발 | `src/server/services/category-mapping.ts` | B-11 | ⬜ |
 | B-13 | 가입 시 1회 과거 백필 (4~8주) | 개발 | `src/server/services/backfill.ts` | B-11, B-09 | ⬜ |
 | B-15 | 쓰기 파이프 + 에코 루프 차단 | 개발 | `src/server/services/calendar-export.ts` | B-11 | 🅿️ Phase 2 |
@@ -271,8 +284,8 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` · `components/focus/FocusStage.tsx` · `styles/screen-focus.css` | U-02, D-02 | ✅ |
 | U-06 | 블록 생성 시트 | 퍼블 | `components/day/BlockSheet.tsx` · `styles/screen-block-sheet.css` | D-04 | ✅ |
 | F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/{useServerClock,useBlockTimer}.ts` | B-04 | ✅ |
-| F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` | B-14 | ⬜ |
-| F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/**` | B-07 | ⬜ |
+| F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` — 시트·집중 두 곳 리팩터 완료 | B-14 | ✅ |
+| F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/Ring` · `day/{BudgetMeter,Timeline}` · `focus` 다이얼 | B-07 | ✅ |
 
 > U-03~U-05는 확정 시안 HTML을 **JSX로 재작성**하는 작업이다 (N-021에서 받아들인 대가).
 > 마크업·CSS는 거의 그대로 옮기고, 상태만 React로 바꾼다.
@@ -299,7 +312,7 @@ MVP 출시 후 착수한다. 착수 시 `cal_bak` 라이선스/이력을 정리�
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | T-01 | 테스트 계획 (46 케이스) | QA | `docs/테스트/01-테스트계획.md` | P-02 | ✅ |
-| T-02 | 단위 테스트 (예산 계산기 · 이관 · 마감) | QA | `packages/domain/**/*.test.ts` | B-05, B-06 | ⬜ |
+| T-02 | 단위 테스트 (예산 계산기 · 이관 · 마감) | QA | `packages/domain/**/*.test.ts` — 187건 | B-05, B-06 | ✅ |
 | T-03 | 통합 테스트 (배치 · 동기화 · **타임존**) | QA | `apps/web/**/*.test.ts` | B-09, B-11 | ⬜ |
 | O-10 | 운영 문서 (환경변수 · 크론 · 장애 복구) | 개발 | `docs/개발/04-배포.md` | O-07 | ⬜ |
 

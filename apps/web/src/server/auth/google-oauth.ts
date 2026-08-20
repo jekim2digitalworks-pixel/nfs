@@ -127,6 +127,39 @@ export async function exchangeCodeForTokens(
     };
 }
 
+/**
+ * 리프레시 토큰으로 액세스 토큰을 다시 받는다 (B-11).
+ *
+ * 액세스 토큰은 1시간짜리라 저장해봐야 곧 죽는다. **저장하지 않고 매번 받는다** —
+ * 캐시하면 만료 판단 로직이 생기고, 서버리스에서는 그 캐시가 인스턴스마다 따로 논다.
+ *
+ * ⚠️ 구글 테스트 모드에서는 리프레시 토큰이 **7일 뒤 만료**된다 (N-028).
+ *    그때 구글은 400 `invalid_grant` 를 준다 — 코드 버그가 아니라 재로그인이 필요한 상태다.
+ *    호출부가 이 둘을 구분할 수 있게 null 을 돌려준다(예외를 던지지 않는다).
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+    const response = await fetch(TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: requiredEnv('GOOGLE_CLIENT_ID'),
+            client_secret: requiredEnv('GOOGLE_CLIENT_SECRET'),
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+        }),
+    });
+
+    if (!response.ok) {
+        // 본문에 client_id 가 섞여 나온다. 로그에만 남기고 밖으로 내보내지 않는다
+        const detail = await response.text();
+        console.error('[nfs] google token refresh failed', response.status, detail);
+        return null;
+    }
+
+    const body = (await response.json()) as { access_token: string };
+    return body.access_token;
+}
+
 /** 액세스 토큰으로 누구인지 확인한다 */
 export async function fetchGoogleProfile(accessToken: string): Promise<GoogleProfile> {
     const response = await fetch(USERINFO_ENDPOINT, {

@@ -12,6 +12,7 @@ import {
 } from '@nfs/domain';
 import { parseAppDateTime, toAppLocalString } from '@nfs/domain/time';
 import { formatHourMinute, formatKoreanDuration, splitHeroTime } from '@/lib/format';
+import { postJson } from '@/lib/api';
 
 
 /**
@@ -39,6 +40,11 @@ export interface SerializedOccupant {
     /** 'yyyy-MM-ddTHH:mm:ss' (앱 타임존 로컬 시각) */
     startTime: string;
     endTime: string;
+}
+
+/** 생성 API 가 돌려주는 것 중 화면이 쓰는 값 */
+interface CreatedBlock {
+    activeBlockId: string;
 }
 
 interface BlockSheetProps {
@@ -206,35 +212,17 @@ export function BlockSheet({ workDate, nowLocal, occupants, defaultOpen = false 
         setServerMessage(null);
 
         try {
-            const response = await fetch('/api/blocks', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    categoryTag: categoryTag,
-                    title: title,
-                    plannedStartTime: toAppLocalString(startTime),
-                    plannedMinutes: lengthMinutes,
-                    startImmediately: startImmediately,
-                }),
+            const result = await postJson<CreatedBlock>('/api/blocks', {
+                categoryTag: categoryTag,
+                title: title,
+                plannedStartTime: toAppLocalString(startTime),
+                plannedMinutes: lengthMinutes,
+                startImmediately: startImmediately,
             });
 
-            const payload = await response.json();
-
-            if (!response.ok || payload.success !== true) {
-                // 서버 메시지는 사용자에게 그대로 보여줄 한국어다 (아키텍처 §8).
-                // 봉투가 깨진 경우까지 대비해 한 단계씩 확인한다
-                let message = '블록을 만들지 못했습니다';
-
-                if (payload !== null && typeof payload === 'object' && 'error' in payload) {
-                    const error = payload.error;
-
-                    if (error !== null && typeof error === 'object' && 'message' in error) {
-                        if (typeof error.message === 'string') {
-                            message = error.message;
-                        }
-                    }
-                }
-                setServerMessage(message);
+            if (!result.ok) {
+                // 서버 메시지는 사용자에게 그대로 보여줄 한국어다 (아키텍처 §8)
+                setServerMessage(result.message);
                 return;
             }
 
@@ -243,13 +231,11 @@ export function BlockSheet({ workDate, nowLocal, occupants, defaultOpen = false 
 
             if (startImmediately) {
                 // 방금 만든 블록의 집중 화면(S-04)으로 바로 넘어간다
-                router.push(`/focus/${payload.data.activeBlockId}`);
+                router.push(`/focus/${result.data.activeBlockId}`);
                 return;
             }
             // 서버 컴포넌트를 다시 그려 예산·타임라인을 갱신한다
             router.refresh();
-        } catch {
-            setServerMessage('네트워크가 불안정합니다. 다시 시도해 주세요');
         } finally {
             setIsSubmitting(false);
         }
