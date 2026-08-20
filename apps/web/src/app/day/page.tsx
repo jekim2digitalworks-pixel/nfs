@@ -8,10 +8,20 @@ import {
 import { currentMemberId } from '@/server/auth/session';
 import { listBlocksOfDate, loadDayBudget } from '@/server/services/block';
 import { loadDayOccupants } from '@/server/services/day-occupants';
+import { loadCalendarConnection } from '@/server/services/calendar-sync';
 import { BudgetMeter } from '@/components/day/BudgetMeter';
 import { BlockSheet, type SerializedOccupant } from '@/components/day/BlockSheet';
-import { CalendarSyncButton } from '@/components/day/CalendarSyncButton';
-import { Timeline, type TimelineBlock, type TimelineEvent } from '@/components/day/Timeline';
+import {
+    CalendarSyncBanner,
+    CalendarSyncButton,
+    CalendarSyncProvider,
+} from '@/components/day/CalendarSync';
+import {
+    Timeline,
+    type TimelineBlock,
+    type TimelineEvent,
+    type TimelineProposal,
+} from '@/components/day/Timeline';
 
 /**
  * S-03 하루 — "지금부터 3시간"에 집중하게 만드는 화면.
@@ -23,6 +33,9 @@ import { Timeline, type TimelineBlock, type TimelineEvent } from '@/components/d
 /** 타임라인이 여는 구간. 지금 한 시간 전부터 3시간 뷰 + 여유 */
 const HOURS_BEFORE_NOW = 1;
 const VISIBLE_HOURS = 5;
+
+/** 오늘이 통째로 비었을 때 제안하는 길이 (화면정의서 S-03 "지금부터 3시간") */
+const PROPOSAL_MINUTES = 180;
 
 function SignedOut() {
     return (
@@ -61,10 +74,11 @@ export default async function DayPage({
     const now = nowInAppZone();
     const workDate = workDateOf(now);
 
-    const [budget, blocks, occupants] = await Promise.all([
+    const [budget, blocks, occupants, calendar] = await Promise.all([
         loadDayBudget(memberId, workDate),
         listBlocksOfDate(memberId, workDate, now),
         loadDayOccupants(memberId, workDate),
+        loadCalendarConnection(memberId, now),
     ]);
 
     const nowMinute = minutesFromStartOfDay(now);
@@ -134,6 +148,24 @@ export default async function DayPage({
         });
     }
 
+    /**
+     * ⭐ **오늘이 통째로 빈 상태는 "없음"이 아니다.**
+     *    남은 시간이 최대인 상태 — 이 앱에서 가장 좋은 상태다 (시안 G · N-037).
+     *    그래서 화면을 회색으로 죽이지 않고, 격자 위에 "지금부터 3시간" 구간만 얹는다.
+     */
+    const isDayEmpty = timelineBlocks.length === 0 && timelineEvents.length === 0;
+
+    let proposal: TimelineProposal | undefined = undefined;
+    if (isDayEmpty) {
+        proposal = {
+            startMinute: nowMinute,
+            lengthMinutes: PROPOSAL_MINUTES,
+            labelLines: ['지금부터 3시간,', '무엇에 쓸까요?'],
+            actionLabel: '블록 만들기',
+            href: '/day?new=1',
+        };
+    }
+
     return (
         <>
             {/* 하루 화면의 광원은 중앙의 따뜻한 앰버다 (디자인 §2.4) */}
@@ -147,24 +179,32 @@ export default async function DayPage({
             <div className="bloom-2" style={{ ['--bloom2-color' as string]: 'rgba(124,140,255,.15)' }} />
 
             <main className="screen screen-day">
-                <header className="nav">
-                    <h1>
-                        오늘
-                        <span>{now.toFormat('M월 d일 cccc')}</span>
-                    </h1>
-                    {/* 캘린더 다시 불러오기 (B-11 · 화면정의서 S-03 헤더) */}
-                    <CalendarSyncButton />
-                </header>
+                {/* ⭐ 헤더의 실패 점과 미터 아래 배너가 **같은 사실**을 본다.
+                    상태를 두 벌 두면 반드시 어긋나므로 컨텍스트로 묶는다 (U-07) */}
+                <CalendarSyncProvider lastSyncedLabel={calendar.lastSyncedLabel}>
+                    <header className="nav">
+                        <h1>
+                            오늘
+                            <span>{now.toFormat('M월 d일 cccc')}</span>
+                        </h1>
+                        {/* 캘린더 다시 불러오기 (B-11 · 화면정의서 S-03 헤더) */}
+                        <CalendarSyncButton />
+                    </header>
 
-                <BudgetMeter
-                    totalMinutes={budget.totalMinutes}
-                    occupiedMinutes={budget.occupiedMinutes}
-                    remainingMinutes={budget.remainingMinutes}
-                    blockMinutes={budget.blockMinutes}
-                    calendarMinutes={budget.calendarMinutes}
-                    overlapMinutes={budget.overlapMinutes}
-                    minutesUntilMidnight={minutesUntilMidnight(now)}
-                />
+                    <BudgetMeter
+                        totalMinutes={budget.totalMinutes}
+                        occupiedMinutes={budget.occupiedMinutes}
+                        remainingMinutes={budget.remainingMinutes}
+                        blockMinutes={budget.blockMinutes}
+                        calendarMinutes={budget.calendarMinutes}
+                        overlapMinutes={budget.overlapMinutes}
+                        minutesUntilMidnight={minutesUntilMidnight(now)}
+                        calendarConnected={calendar.connected}
+                    />
+
+                    {/* 실패했을 때만 나온다. 화면을 덮지 않고 미터 바로 아래에서 말한다 */}
+                    <CalendarSyncBanner />
+                </CalendarSyncProvider>
 
                 <div className="tl-h">
                     <span>지금부터</span>
@@ -181,6 +221,7 @@ export default async function DayPage({
                     events={timelineEvents}
                     nowMinute={nowMinute}
                     nowLabel={now.toFormat('HH:mm')}
+                    proposal={proposal}
                 />
 
                 {/* S-05 블록 생성 시트 (U-06). FAB 은 시트가 자기 트리거로 갖고 있다 */}

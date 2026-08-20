@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CATEGORY_TAG_LABELS, type CategoryTag } from '@nfs/domain';
 
 /**
@@ -37,6 +38,22 @@ export interface TimelineEvent {
     lengthMinutes: number;
 }
 
+/**
+ * 오늘이 통째로 빈 날의 제안 (U-07 · 시안 G · N-037)
+ *
+ * ⭐ **카드가 아니라 격자 위의 구간이다.** 화면 한가운데 카드로 띄우면
+ *    "3시간"이 그냥 글자지만, 격자에 얹으면 **어디서 어디까지인지 형태로 보인다.**
+ */
+export interface TimelineProposal {
+    /** 그날 0시 기준 분 */
+    startMinute: number;
+    lengthMinutes: number;
+    /** 줄 단위로 받는다 — 어디서 줄이 바뀌는지가 시안의 일부다 */
+    labelLines: readonly string[];
+    actionLabel: string;
+    href: string;
+}
+
 interface TimelineProps {
     /** 표시 구간의 시작 시(0~23). 보통 "지금부터 3시간" 근처를 보여준다 */
     fromHour: number;
@@ -47,6 +64,8 @@ interface TimelineProps {
     /** 지금 시각(그날 0시 기준 분). 구간 밖이면 선을 그리지 않는다 */
     nowMinute: number;
     nowLabel: string;
+    /** 블록도 일정도 없을 때만 넘긴다 */
+    proposal?: TimelineProposal;
 }
 
 export function Timeline({
@@ -56,6 +75,7 @@ export function Timeline({
     events,
     nowMinute,
     nowLabel,
+    proposal,
 }: TimelineProps) {
     const fromMinute = fromHour * 60;
     const toMinute = fromMinute + hourCount * 60;
@@ -85,6 +105,20 @@ export function Timeline({
     }
 
     const showNowLine = nowMinute >= fromMinute && nowMinute <= toMinute;
+
+    // 제안 구간도 블록과 **같은 좌표 함수**를 쓴다. 여기서 따로 계산하면
+    // 구간 경계에서 잘리는 규칙이 갈려 제안만 레인 밖으로 삐져나간다
+    let proposalPosition: { top: number; height: number } | null = null;
+    let proposalLines: readonly string[] = [];
+    let proposalActionLabel = '';
+    let proposalHref = '/day?new=1';
+
+    if (proposal !== undefined) {
+        proposalPosition = positionOf(proposal.startMinute, proposal.lengthMinutes);
+        proposalLines = proposal.labelLines;
+        proposalActionLabel = proposal.actionLabel;
+        proposalHref = proposal.href;
+    }
 
     return (
         <div className="tl" style={{ height: laneHeight }}>
@@ -151,6 +185,28 @@ export function Timeline({
                         </div>
                     );
                 })}
+
+                {proposalPosition === null ? null : (
+                    <div
+                        className="propose"
+                        style={{ top: proposalPosition.top, height: proposalPosition.height }}
+                    >
+                        <p>
+                            {proposalLines.map(function renderLine(line, index) {
+                                const isLast = index === proposalLines.length - 1;
+                                return (
+                                    <span key={line}>
+                                        {line}
+                                        {isLast ? null : <br />}
+                                    </span>
+                                );
+                            })}
+                        </p>
+                        <Link className="btn btn--primary btn--inline" href={proposalHref}>
+                            {proposalActionLabel}
+                        </Link>
+                    </div>
+                )}
 
                 {showNowLine ? (
                     <div

@@ -13,6 +13,16 @@ import { DateTime } from 'luxon';
  */
 export const APP_ZONE = 'Asia/Seoul';
 
+/**
+ * 표시용 로케일. **존과 같은 자리에 둔다.**
+ *
+ * Luxon 은 로케일을 안 정하면 실행 환경(en-US)을 따른다.
+ * 그래서 `toFormat('cccc')` 가 조용히 "Thursday" 를 낸다 —
+ * 서버는 UTC·en-US 라 개발자 브라우저에서는 안 보이고 배포본에서만 보인다.
+ * 존과 똑같은 함정이라 똑같이 코드로 막는다.
+ */
+export const APP_LOCALE = 'ko';
+
 /** 하루가 끝나는 시각. 자정 정산의 기준이다. */
 const MINUTES_PER_DAY = 1440;
 
@@ -24,7 +34,7 @@ const MINUTES_PER_DAY = 1440;
  * 이 함수는 서비스 계층의 진입점에서 한 번만 호출한다.
  */
 export function nowInAppZone(): DateTime {
-    return DateTime.now().setZone(APP_ZONE);
+    return DateTime.now().setZone(APP_ZONE).setLocale(APP_LOCALE);
 }
 
 /**
@@ -66,7 +76,7 @@ export function weekStartDateOf(instant: DateTime): string {
  * 이 프로젝트에서 그건 "하루가 통째로 밀리는" 버그다.
  */
 export function parseAppDate(dateString: string): DateTime {
-    const parsed = DateTime.fromISO(dateString, { zone: APP_ZONE });
+    const parsed = DateTime.fromISO(dateString, { zone: APP_ZONE }).setLocale(APP_LOCALE);
 
     if (!parsed.isValid) {
         throw new Error(`날짜 형식이 올바르지 않습니다: ${dateString}`);
@@ -83,7 +93,7 @@ export function parseAppDate(dateString: string): DateTime {
  * ⚠️ 오프셋이 없는 문자열에는 쓰지 않는다 — 그건 `parseAppDateTime` 이다.
  */
 export function instantFromIsoString(isoString: string): DateTime {
-    const parsed = DateTime.fromISO(isoString, { setZone: true });
+    const parsed = DateTime.fromISO(isoString, { setZone: true }).setLocale(APP_LOCALE);
 
     if (!parsed.isValid) {
         throw new Error(`시각 형식이 올바르지 않습니다: ${isoString}`);
@@ -98,7 +108,7 @@ export function instantFromIsoString(isoString: string): DateTime {
  * 단일 타임존 전제이므로 존을 실어 보내면 오히려 클라이언트마다 해석이 갈린다.
  */
 export function parseAppDateTime(localDateTimeString: string): DateTime {
-    const parsed = DateTime.fromISO(localDateTimeString, { zone: APP_ZONE });
+    const parsed = DateTime.fromISO(localDateTimeString, { zone: APP_ZONE }).setLocale(APP_LOCALE);
 
     if (!parsed.isValid) {
         throw new Error(`시각 형식이 올바르지 않습니다: ${localDateTimeString}`);

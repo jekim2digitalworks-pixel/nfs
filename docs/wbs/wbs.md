@@ -6,8 +6,8 @@
 | | |
 |---|---|
 | 최종 갱신 | **2026-08-20** (세션 종료 시점) |
-| 갱신자 | 개발 (아키텍트) → QA (리드) → 디자인 |
-| 전체 진행률 | **37 / 49 작업 완료 (76%)** · MVP 범위는 **45작업** (Phase 5 · B-15 제외) |
+| 갱신자 | 개발 (아키텍트) → QA (리드) → 디자인 → 퍼블 |
+| 전체 진행률 | **38 / 49 작업 완료 (78%)** · MVP 범위는 **45작업** (Phase 5 · B-15 제외) |
 | | ⚠️ 08-20: 헤더 숫자가 Phase 표 합계와 어긋나 있었다(35/44 ↔ 34/48). **표에서 세어 맞췄다** — 표가 원본이다 |
 
 ---
@@ -16,8 +16,8 @@
 
 **지금 단계:** **Phase 2 완료 · Phase 4 마무리 중** — 핵심 3화면(리포트·하루·집중)이 다 돈다
 
-**마지막 커밋:** `e8ea8f3` test(T-03) 배치·동기화·타임존 통합 테스트 · 2026-08-20
-→ **이 세션에서 D-06 시안 G 도 커밋**
+**마지막 커밋:** `3ab803c` design(D-06) 시안 G — 빈 상태·로딩·에러 · 2026-08-20
+→ **이 세션에서 U-07 상태 화면 퍼블리싱도 커밋**
 
 ⛔ **이 PC 에서 Vercel 배포가 막혀 있다.** 사내망(DNS `V-CWAD1.coway.io`)이 `vercel.com` ·
 `api.vercel.com` · `*.vercel.app` 의 TLS 를 끊는다(curl 35). github.com 은 정상.
@@ -36,6 +36,7 @@
 통계        기간별 집계 · 태그별 · 월별 추이. 실DB 숫자 대조 완료
 화면        리포트 · 하루(예산미터·타임라인) · 블록 생성 시트 · **집중(다이얼·서버 동기 타이머)**
 캘린더      POST /api/calendar/sync — 이번 주 읽기 + 필터 7종. **아직 실계정으로 안 태웠다**
+상태        로딩 스켈레톤 · 빈 상태 · 부분 실패 재시도 · 미연동 제안 배너 (U-07)
 ```
 
 **테스트 274건** (도메인 187 + 웹 87) · lint · typecheck · build 전부 통과
@@ -67,8 +68,10 @@ apps/web/src/
   app/focus/[blockId]/        S-04 집중    ✅
   hooks/                      useServerClock(오프셋) · useBlockTimer(표시 전용)  ⭐
   lib/api.ts                  fetch + 봉투 해석 단일 창구 (F-02)
-  components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet} · focus/FocusStage
-  styles/                     tokens · base · components · screen-{report,day,block-sheet,focus}
+  components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet,CalendarSync} · focus/FocusStage
+  components/state/           Skeleton · RetryButton · SectionError · CalendarOffer  ⭐ 재료지 완성품이 아니다
+  styles/                     tokens · base · components · state · screen-{report,day,block-sheet,focus}
+  app/loading.tsx · app/day/loading.tsx   스켈레톤 (격자·지금 선은 덮지 않는다)
 ```
 
 ### ✅ 이 세션에서 한 것 (2026-08-20) — B-08 · B-09 · D-04 · U-06 · U-05 · F-01
@@ -103,7 +106,7 @@ apps/web/src/
 - 집중 화면에서는 **하단 탭이 사라진다.** 나가는 길은 좌상단 닫기뿐이다
 - 시안 C 의 "구글 캘린더에도 남깁니다" 체크박스는 **넣지 않았다** — 쓰기 파이프(B-15)가 Phase 2 다
 
-### ✅ 이 세션에서 추가로 한 것 (2026-08-20 오후) — B-11 마감 연결 · T-03 · D-06
+### ✅ 이 세션에서 추가로 한 것 (2026-08-20 오후) — B-11 마감 연결 · T-03 · D-06 · U-07
 
 **1. `closing.ts` 의 `performFinalCalendarSync` → `syncCalendarWeek` 연결** (N-032 의 빈 자리)
 
@@ -145,6 +148,28 @@ apps/web/src/
 브라우저로 렌더링해 3건을 잡았다 — `.lane` 래퍼 누락(블록이 시각 라벨 위로 올라탐) ·
 지금 선이 15:00 자리 · 배너가 브라우저 기본 링크색. **열어보지 않았으면 그대로 퍼블리싱으로 넘어갔다.**
 
+**4. U-07 상태 화면 퍼블리싱** (시안 G → 코드 · **N-038**)
+
+| 새로 생긴 것 | |
+|---|---|
+| `styles/state.css` | 스켈레톤(sweep/breathe) · 인라인에러 · 실패카드 · 제안배너 · `m-unknown` · `.spin` |
+| `components/state/**` | `Skeleton` · `RetryButton`(클라) · `SectionError` · `CalendarOffer` |
+| `app/loading.tsx` · `app/day/loading.tsx` | 리포트·하루 스켈레톤 |
+| `components/report/EmptyLedger.tsx` | 빈 링 + CTA (62px `0시간` 을 쓰지 않는다) |
+| `components/day/CalendarSync.tsx` | 헤더 점 + 미터 아래 배너를 **컨텍스트로 묶었다** |
+| `services/calendar-sync.ts` 의 `loadCalendarConnection` | 연결 여부·마지막 동기화 시각을 **서버가** 준다 |
+
+- ⭐ **공용 `<EmptyState>` 를 만들지 않았다.** 공유하는 건 CSS 재료뿐이다 (N-037 의 구현판)
+- ⭐ 부분 실패는 조회를 **조각별로 `try/catch`** 해서 그 자리에만 재시도 카드를 놓는다 —
+  Next `error.tsx` 는 라우트 전체를 대체해서 "총계는 왔는데 분포만 실패"를 표현할 수 없다
+- 🐛 **요일이 영어로 나오고 있었다** (`toFormat('cccc')` → `Thursday`). U-07 이전부터 있던 버그다.
+  Luxon 은 로케일을 안 정하면 실행 환경(en-US)을 따른다 — **존과 똑같은 함정이라 똑같이 코드로 막았다.**
+  `APP_LOCALE = 'ko'` 를 `packages/domain/time` 에 두고 생성 지점에서 `setLocale`
+- 🐛 카드 여백 규약을 틀렸다 — 이 프로젝트는 `calc(var(--pad-card) - var(--pad-screen))` 음수 마진이다
+- 브라우저로 확인: 임시 라우트를 만들어 스켈레톤·빈 상태·실패 카드·제안 배너를 렌더하고,
+  **비로그인 상태로 동기화를 눌러 401 → 실패 배너까지 실제로 태웠다.** 확인 후 임시 라우트는 지웠다.
+  콘솔 hydration 경고 없음 · 카드 정렬 14px 일치 · 재시도 탭 타겟 44px
+
 ### 🔜 다음에 할 일 (순서대로)
 
 **0. 배포 + GitHub 시크릿 등록** ⛔ **다른 망에서 해야 한다** (사내망이 Vercel 을 막는다)
@@ -170,28 +195,22 @@ apps/web/src/
       - ⚠️ 리프레시 토큰 7일 만료(N-028). `FAILED` 면 **재로그인부터**
       - **googleapis.com 은 이 망에서 열린다**(확인함). 막히는 건 vercel 도메인뿐이다
 
-**2. U-07 상태 화면 퍼블리싱** ← **시안 G 가 나왔으니 이제 코드로 옮긴다**
-   지금 화면들은 빈 상태를 임시 문구로 때우고 **로딩·에러 상태가 아예 없다.**
-   - 리포트·하루 스켈레톤 (`loading.tsx`)
-   - 캘린더 실패 인라인 배너 + 헤더 점
-   - 미연동 제안 배너
-
-**3. 손으로 한 바퀴 돌려보기** — 클릭 경로를 아직 못 태웠다
+**2. 손으로 한 바퀴 돌려보기** — 클릭 경로를 아직 못 태웠다
    - `/day` FAB → 칩을 누를 때 미리보기 숫자가 따라오는가
    - `/focus/{id}` 다이얼이 **매초 줄어드는가**, 백그라운드 복귀 시 값이 튀지 않는가
 
-**4. D-05 시안** — 온보딩 · 구글 연동 동의
+**3. D-05 시안** — 온보딩 · 구글 연동 동의
 
-**5. D-03 시안** — ⛔ Q-010(평생 화면 기준 나이) 답이 먼저다
+**4. D-03 시안** — ⛔ Q-010(평생 화면 기준 나이) 답이 먼저다
 
-**6. B-12 색상→태그 매핑** — 읽는 쪽(`loadColorMapping`·`mapCategoryTag`)은 이미 있다.
+**5. B-12 색상→태그 매핑** — 읽는 쪽(`loadColorMapping`·`mapCategoryTag`)은 이미 있다.
    **매핑을 만드는 길이 없다** — 서비스·API·화면이 통째로 비어 있어서 지금은 전부 미분류로 들어온다
 
 ### ⚠️ 알아둘 것
 
 | 항목 | 상태 |
 |---|---|
-| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06·U-05·F-01·F-02·B-11·T-03** 이 안 올라갔다 (D-06 은 문서라 무관) |
+| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06·U-05·F-01·F-02·B-11·T-03·U-07** 이 안 올라갔다 |
 | ⛔ **이 PC 에서 Vercel 이 안 열린다** | 사내망(DNS `V-CWAD1.coway.io`)이 vercel 도메인의 TLS 를 끊는다 — `npx vercel --prod` 가 `fetch failed`, curl 은 35. DNS 는 정상 해석되고 github 는 200. **다른 망에서 배포할 것** (08-19·08-20 이틀 연속 동일) |
 | **크론이 아직 안 돈다** | 워크플로 2종 작성 완료. GitHub 시크릿(`APP_URL`·`CRON_SECRET`) 미등록 + 배포 전이다 |
 | `gh` CLI 가 없다 | 그래서 시크릿 등록을 대신 해줄 수 없다. 필요하면 `npm i -g gh` 대신 GitHub 웹 UI 가 빠르다 |
@@ -248,7 +267,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
 | **2** | 핵심 도메인 · API | 9 / 9 | ✅ **완료** |
 | **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
-| **4** | 화면 구현 | 9 / 10 | 🟡 **지금 여기** |
+| **4** | 화면 구현 | 10 / 10 | ✅ **완료** |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
 | **6** | 품질 · 운영 | 3 / 4 | 🟡 |
 
@@ -338,7 +357,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/{useServerClock,useBlockTimer}.ts` | B-04 | ✅ |
 | F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` — 시트·집중 두 곳 리팩터 완료 | B-14 | ✅ |
 | F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/Ring` · `day/{BudgetMeter,Timeline}` · `focus` 다이얼 | B-07 | ✅ |
-| U-07 | **상태 화면 퍼블리싱** (스켈레톤 · 인라인 에러 · 제안 배너) | 퍼블 | `app/**/loading.tsx` · `components/state/**` | D-06 | ⬜ |
+| U-07 | **상태 화면 퍼블리싱** (스켈레톤 · 인라인 에러 · 제안 배너) | 퍼블 | `styles/state.css` · `components/state/**` · `app/**/loading.tsx` · `day/CalendarSync.tsx` (**N-038**) | D-06 | ✅ |
 
 > U-03~U-05는 확정 시안 HTML을 **JSX로 재작성**하는 작업이다 (N-021에서 받아들인 대가).
 > 마크업·CSS는 거의 그대로 옮기고, 상태만 React로 바꾼다.

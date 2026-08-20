@@ -18,6 +18,12 @@ interface BudgetMeterProps {
     calendarMinutes: number;
     overlapMinutes: number;
     minutesUntilMidnight: number;
+    /**
+     * 구글 캘린더가 연결돼 있는가.
+     * 안 돼 있으면 캘린더 범례를 **0시간이 아니라 연결 링크로** 바꾼다 (화면정의서 S-03).
+     * `0:00` 으로 두면 "일정이 없다"로 읽히는데, 사실은 **보고 있지 않은** 것이다.
+     */
+    calendarConnected: boolean;
 }
 
 export function BudgetMeter({
@@ -28,6 +34,7 @@ export function BudgetMeter({
     calendarMinutes,
     overlapMinutes,
     minutesUntilMidnight,
+    calendarConnected,
 }: BudgetMeterProps) {
     const remaining = splitHeroTime(remainingMinutes);
 
@@ -60,20 +67,41 @@ export function BudgetMeter({
                 {freeMinutes > 0 ? <i className="m-free" style={{ flexGrow: freeMinutes }} /> : null}
             </div>
 
-            <div className="keys">
-                <span>
-                    <b className="m-nfs" style={{ background: 'var(--dev)' }} />내 블록{' '}
-                    <span className="num">{formatHourMinute(blockMinutes)}</span>
-                </span>
-                <span>
-                    <b style={{ background: 'rgba(255,255,255,.32)' }} />
-                    캘린더 <span className="num">{formatHourMinute(calendarMinutes)}</span>
-                </span>
-                <span>
-                    <b style={{ background: 'rgba(255,255,255,.12)' }} />
-                    빈 시간 <span className="num">{formatHourMinute(freeMinutes)}</span>
-                </span>
-            </div>
+            {/* ⭐ 오늘이 통째로 비었을 때는 0 을 세 번 늘어놓지 않는다.
+                그건 나쁜 상태가 아니라 **남은 시간이 최대인 상태**다 (시안 G · N-037) */}
+            {occupiedMinutes === 0 ? (
+                <div className="keys">
+                    <span>
+                        <b style={{ background: 'rgba(255,255,255,.12)' }} />
+                        아직 아무것도 잡히지 않았습니다
+                    </span>
+                </div>
+            ) : (
+                <div className="keys">
+                    <span>
+                        <b className="m-nfs" style={{ background: 'var(--dev)' }} />내 블록{' '}
+                        <span className="num">{formatHourMinute(blockMinutes)}</span>
+                    </span>
+
+                    {calendarConnected ? (
+                        <span>
+                            <b style={{ background: 'rgba(255,255,255,.32)' }} />
+                            캘린더 <span className="num">{formatHourMinute(calendarMinutes)}</span>
+                        </span>
+                    ) : (
+                        <span>
+                            <b style={{ background: 'rgba(255,255,255,.12)' }} />
+                            {/* 구글 동의 화면으로 브라우저를 보낸다. 외부 이동이라 <Link> 가 아니라 <a> 다 */}
+                            <a href="/api/auth/google/start">캘린더 연결</a>
+                        </span>
+                    )}
+
+                    <span>
+                        <b style={{ background: 'rgba(255,255,255,.12)' }} />
+                        빈 시간 <span className="num">{formatHourMinute(freeMinutes)}</span>
+                    </span>
+                </div>
+            )}
 
             {/* 겹친 시간을 굳이 말해주는 이유: 말하지 않으면 사용자가 숫자를 직접 더해보고
                 "합이 안 맞는다"고 느낀다. 계산은 서버가 한 번만 한다 */}

@@ -221,6 +221,16 @@
     color: var(--tx2);
 }
 
+/* 링 중앙이 값이 아니라 "아직 없음" 일 때 — 없는 값을 있는 값처럼 읽히게 두지 않는다 */
+.ring-mid s.is-muted {
+    color: var(--tx3);
+}
+
+/* 빈 상태에서는 히어로 숫자가 없어 링이 첫 오브젝트가 된다. 그만큼 위를 띄운다 */
+.screen-report .empty-lead {
+    padding-top: 24px;
+}
+
 /* ── 빈 상태 ────────────────────────────── */
 .empty {
     margin-top: 40px;

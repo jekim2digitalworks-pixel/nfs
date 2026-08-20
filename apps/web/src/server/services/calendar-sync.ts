@@ -10,6 +10,7 @@ import {
 } from '@nfs/domain';
 import {
     dateStringToDateColumn,
+    instantFromColumn,
     instantFromIsoString,
     instantToColumn,
     parseAppDate,
@@ -418,4 +419,50 @@ export async function syncCurrentWeek(
     now: DateTime,
 ): Promise<CalendarSyncResultView> {
     return await syncCalendarWeek(memberId, weekStartDateOf(now), now);
+}
+
+/**
+ * 화면이 캘린더 상태를 물어보는 창구 (U-07)
+ *
+ * ⭐ **연결 여부는 클릭이 아니라 서버가 안다.** 버튼을 눌러봐야 아는 구조면
+ *    처음 들어온 사용자는 "일정 시간이 왜 없지"를 스스로 알아내야 한다.
+ *
+ * `lastSyncedTime` 은 마지막으로 **실제로 읽어온** 시각이다.
+ * 실패한 시도는 여기 남지 않는다 — 그래서 "지난번에 읽은 일정으로 보여주고 있습니다"의
+ * '지난번'이 정직한 값이 된다.
+ */
+export interface CalendarConnectionView {
+    connected: boolean;
+    /** 'HH:mm'. 이번 주를 한 번도 못 읽었으면 null */
+    lastSyncedLabel: string | null;
+}
+
+export async function loadCalendarConnection(
+    memberId: bigint,
+    now: DateTime,
+): Promise<CalendarConnectionView> {
+    const weekColumn = dateStringToDateColumn(weekStartDateOf(now));
+
+    const [member, closing] = await Promise.all([
+        prisma.member.findUnique({
+            where: { memberId: memberId },
+            select: { googleScopeLevel: true },
+        }),
+        prisma.weeklyClosing.findUnique({
+            where: { memberId_weekStartDate: { memberId: memberId, weekStartDate: weekColumn } },
+            select: { lastSyncedTime: true },
+        }),
+    ]);
+
+    let connected = false;
+    if (member !== null && member.googleScopeLevel !== 'NONE') {
+        connected = true;
+    }
+
+    let lastSyncedLabel: string | null = null;
+    if (closing !== null && closing.lastSyncedTime !== null) {
+        lastSyncedLabel = instantFromColumn(closing.lastSyncedTime).toFormat('HH:mm');
+    }
+
+    return { connected: connected, lastSyncedLabel: lastSyncedLabel };
 }

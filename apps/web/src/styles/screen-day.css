@@ -108,6 +108,13 @@
     align-items: center;
     gap: 6px;
 }
+/* 범례 안의 유일한 링크 — 캘린더 미연동일 때만 나온다.
+   크롬은 무채색이라 색이 아니라 밑줄로만 링크임을 말한다 (디자인 §1.2) */
+.keys a {
+    color: var(--tx2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hair);
+}
 .keys b {
     width: 7px;
     height: 7px;
@@ -384,14 +391,3 @@
     text-align: right;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .cal-sync-spin {
-        animation: cal-sync-turn 0.9s linear infinite;
-        transform-origin: center;
-    }
-    @keyframes cal-sync-turn {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-}

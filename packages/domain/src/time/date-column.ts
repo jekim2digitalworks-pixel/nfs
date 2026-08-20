@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { APP_ZONE } from './zone';
+import { APP_LOCALE, APP_ZONE } from './zone';
 
 /**
  * 날짜만 담는 값(work_date · stat_date · week_start_date)의 표현을 변환한다.
@@ -63,7 +63,7 @@ export function instantToDateColumn(instant: DateTime): Date {
  * 쓰게 되고, 그 순간 존을 아는 곳이 여러 군데가 된다.
  */
 export function instantFromColumn(value: Date): DateTime {
-    return DateTime.fromJSDate(value, { zone: APP_ZONE });
+    return DateTime.fromJSDate(value, { zone: APP_ZONE }).setLocale(APP_LOCALE);
 }
 
 /** 도메인 `DateTime` → `timestamptz` 컬럼에 넣을 값 */

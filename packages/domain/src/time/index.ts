@@ -1,5 +1,6 @@
 export {
     APP_ZONE,
+    APP_LOCALE,
     nowInAppZone,
     workDateOf,
     weekStartDateOf,

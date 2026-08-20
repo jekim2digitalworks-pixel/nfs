@@ -25,6 +25,11 @@ interface RingProps {
     caption: string;
     value: string;
     subValue: string;
+    /**
+     * 값이 "아직 없음" 처럼 **데이터가 아닌 말**일 때 켠다 (빈 상태 · 시안 G).
+     * 30px 흰 글씨로 두면 없는 값이 있는 값처럼 읽힌다.
+     */
+    valueMuted?: boolean;
 }
 
 interface ComputedArc {
@@ -72,7 +77,7 @@ function computeArcs(segments: readonly RingSegment[], circumference: number): C
     return arcs;
 }
 
-export function Ring({ segments, caption, value, subValue }: RingProps) {
+export function Ring({ segments, caption, value, subValue, valueMuted = false }: RingProps) {
     const circumference = 2 * Math.PI * RADIUS;
     const arcs = computeArcs(segments, circumference);
 
@@ -101,7 +106,7 @@ export function Ring({ segments, caption, value, subValue }: RingProps) {
 
             <div className="ring-mid">
                 <b>{caption}</b>
-                <s className="num">{value}</s>
+                <s className={valueMuted ? 'num is-muted' : 'num'}>{value}</s>
                 <u>{subValue}</u>
             </div>
         </div>

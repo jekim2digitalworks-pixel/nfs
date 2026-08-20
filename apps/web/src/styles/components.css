@@ -116,6 +116,15 @@
     color: #0a0a0d;
 }
 
+/* 화면 폭을 다 쓰지 않는 버튼. 제출이 아니라 **권유**일 때 쓴다 */
+.btn--inline {
+    display: inline-flex;
+    width: auto;
+    height: 52px;
+    padding: 0 26px;
+    font-size: 15px;
+}
+
 .btn--secondary {
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--hair);
