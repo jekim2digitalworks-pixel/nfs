@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-20** (세션 종료 시점) |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **28 / 44 작업 완료 (64%)** · MVP 범위는 41작업 (Phase 5 제외) |
+| 전체 진행률 | **30 / 44 작업 완료 (68%)** · MVP 범위는 41작업 (Phase 5 제외) |
 
 ---
 
@@ -15,7 +15,7 @@
 
 **지금 단계:** **Phase 2 완료 · Phase 4 진행 중** — 배치 2종이 다 붙었다. 남은 건 화면과 캘린더 연동
 
-**마지막 커밋:** `2665ea8` feat(B-08 · O-07) · 2026-08-20 → **이 세션에서 B-09 커밋 예정**
+**마지막 커밋:** `7e31f13` feat(B-09) · 2026-08-20 → **이 세션에서 D-04·U-06 커밋 예정**
 
 ⛔ **이 PC 에서 Vercel 배포가 막혀 있다.** 사내망(DNS `V-CWAD1.coway.io`)이 `vercel.com` ·
 `api.vercel.com` · `*.vercel.app` 의 TLS 를 끊는다(curl 35). github.com 은 정상.
@@ -32,17 +32,17 @@
 자정 배치   POST /api/jobs/daily-settlement — 어제 이전 블록 전부 정산. 실DB 검증 완료
 주간 마감   POST /api/jobs/weekly-closing — 기한 넘긴 주를 동결. 실DB 검증 완료
 통계        기간별 집계 · 태그별 · 월별 추이. 실DB 숫자 대조 완료
-화면        리포트(링·목록·월별) · 하루(예산미터·타임라인) 렌더 확인
+화면        리포트 · 하루(예산미터·타임라인) · **블록 생성 시트**(미리보기·예산 초과)
 ```
 
-**테스트 186건** (도메인 168 + 웹 18) · lint · typecheck · build 전부 통과
+**테스트 193건** (도메인 175 + 웹 18) · lint · typecheck · build 전부 통과
 
 ### 📁 코드 지도
 
 ```
 packages/domain/
   time/        존 유틸 · DATE 컬럼 변환 · timestamptz 변환      (29 테스트)
-  budget/      ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증        (53)
+  budget/      ⭐⭐ 구간 병합 · 예산 계산기 · 등록 검증 · 미리보기  (60)
   block/       생성 검증 · 상태 전이 · 정산 값 계산            (45)
   closing/     주 구간 · 마감 기한 · 캘린더→원장 변환          (24)
   statistics/  기간 범위 · 직전 기간 · 비율                    (17)
@@ -59,11 +59,11 @@ apps/web/src/
   app/page.tsx                S-02 리포트  ✅
   app/day/page.tsx            S-03 하루    ✅
   app/focus/page.tsx          S-04 집중    ⬜ 껍데기
-  components/                 chart/Ring · report/* · day/*
-  styles/                     tokens · base · components · screen-report · screen-day
+  components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet}
+  styles/                     tokens · base · components · screen-report · screen-day · screen-block-sheet
 ```
 
-### ✅ 이 세션에서 한 것 (2026-08-20) — B-08 · B-09 · O-07(배포만 남음)
+### ✅ 이 세션에서 한 것 (2026-08-20) — B-08 · B-09 · D-04 · U-06
 
 **B-08 자정 정산** (커밋 `2665ea8`)
 - `api/jobs/daily-settlement/route.ts` + `services/settlement.ts` 의 `runDailySettlement`
@@ -79,31 +79,44 @@ apps/web/src/
 
 두 배치 모두 실DB 로 태워 확인했다(겹침 차감·멱등성·경계). 검증용 행은 전부 삭제했다.
 
+**D-04 시안 E · U-06 블록 생성 시트**
+- `docs/디자인/시안-E-블록생성.html` — 기본 / 예산 초과 두 상태
+- `components/day/BlockSheet.tsx` + `styles/screen-block-sheet.css` — FAB 이 시트를 연다
+- ⭐ 미리보기 판정을 도메인으로 내렸다: `previewWithCandidate` 를 화면이, `assertBlockFitsInBudget` 을
+  서버가 쓰되 **같은 비교식**을 공유한다. 파리티 테스트로 묶어뒀다 (**N-033**)
+- 🐛 **`screen-day.css` 가 어디에서도 import 되지 않고 있었다** (U-04 부터). 하루 화면이 스타일 없이
+  렌더링되고 있었다. `globals.css` 에 추가하고 번들 CSS 를 실제로 grep 해서 확인했다
+
 ### 🔜 다음에 할 일 (순서대로)
 
 **0. 배포 + GitHub 시크릿 등록** ⛔ **다른 망에서 해야 한다** (사내망이 Vercel 을 막는다)
 
 크론 워크플로 2종은 만들었지만 **아직 한 번도 실제로 돌지 않았다.** 로컬 dev 로만 검증했다.
 
-1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09 만큼 뒤처져 있다
+1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09·U-06 만큼 뒤처져 있다
 2. Vercel 프로젝트 환경변수에 `CRON_SECRET` 확인 (로컬 `.env.local` 과 같은 값이어야 한다)
 3. GitHub 레포 Settings → Secrets → `APP_URL`(끝에 `/` 없이), `CRON_SECRET`
 4. Actions 탭에서 **두 워크플로를 손으로 한 번씩 돌린다** (`workflow_dispatch`). 크론을 기다리지 않는다
    - 자정 정산: 어제 블록이 없으면 `processedMemberCount: 0` 이 정상
    - 주간 마감: 지난주 캘린더 일정이 없으면 아무것도 안 닫는 게 정상
 
-**1. U-06 블록 생성 시트** — 지금 하루 화면의 FAB 이 자리만 잡고 있다 (D-04 시안 먼저)
+**1. 시트를 실제로 눌러보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
+   서버 쪽(생성 API·예산 검증·SSR)과 계산 로직(파리티 테스트)은 확인했다.
+   `pnpm dev` → `/day` 에서 FAB → 칩을 눌러 미리보기 숫자가 따라오는지 눈으로 볼 것
 
-**2. B-11 캘린더 동기화** — 이게 붙어야 주간 마감의 1단계와 `SYNCED` 가 살아난다.
+**2. U-05 집중 화면** — 시트의 `지금 시작하기` 가 지금은 껍데기 `/focus` 로 간다.
+   `/focus/[blockId]` 가 생기면 그리로 바꾼다 (`BlockSheet.tsx` 의 `router.push`)
+
+**3. B-11 캘린더 동기화** — 이게 붙어야 주간 마감의 1단계와 `SYNCED` 가 살아난다.
    `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) 자리에 연결한다
 
-**3. F-01 타이머** · **U-05 집중 화면**
+**4. F-01 타이머** · **D-03 시안**(Q-010 먼저)
 
 ### ⚠️ 알아둘 것
 
 | 항목 | 상태 |
 |---|---|
-| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09** 가 안 올라갔다 |
+| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06** 이 안 올라갔다 |
 | ⛔ **이 PC 에서 Vercel 이 안 열린다** | 사내망(DNS `V-CWAD1.coway.io`)이 vercel 도메인의 TLS 를 끊는다 — `npx vercel --prod` 가 `fetch failed`, curl 은 35. DNS 는 정상 해석되고 github 는 200. **다른 망에서 배포할 것** (08-19·08-20 이틀 연속 동일) |
 | **크론이 아직 안 돈다** | 워크플로 2종 작성 완료. GitHub 시크릿(`APP_URL`·`CRON_SECRET`) 미등록 + 배포 전이다 |
 | `gh` CLI 가 없다 | 그래서 시크릿 등록을 대신 해줄 수 없다. 필요하면 `npm i -g gh` 대신 GitHub 웹 UI 가 빠르다 |
@@ -121,7 +134,7 @@ pnpm dev          개발 서버 (3000)
 pnpm build        prisma generate + 빌드 — 전 라우트가 ƒ(Dynamic) 이어야 한다
 pnpm lint         ⭐ 시간·XSS·서버경계 방어 규칙
 pnpm typecheck    전 패키지
-pnpm test         전 패키지 (186건)
+pnpm test         전 패키지 (193건)
 pnpm db:migrate   스키마 변경 시
 
 npx vercel --prod --yes      ⭐ 프로덕션 배포 (Git 푸시로는 안 된다)
@@ -136,7 +149,6 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | | |
 |---|---|
 | Q-010 | 평생 화면(S-06)의 기준 나이 — D-03 시안을 막고 있다 |
-| D-04 | 블록 생성 시트 시안 — U-06 을 막고 있다 |
 
 ---
 
@@ -156,11 +168,11 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 
 | Phase | 이름 | 진행 | 상태 |
 |---|---|---|---|
-| **0** | 기획 · 디자인 확정 | 8 / 12 | 🟡 |
+| **0** | 기획 · 디자인 확정 | 9 / 12 | 🟡 |
 | **1** | 스캐폴딩 · 스키마 · 배포 골격 | 5 / 6 | 🟡 |
 | **2** | 핵심 도메인 · API | 9 / 9 | ✅ **완료** |
 | **3** | 구글 캘린더 연동 | 1 / 5 | 🟡 |
-| **4** | 화면 구현 | 4 / 9 | 🟡 **지금 여기** |
+| **4** | 화면 구현 | 5 / 9 | 🟡 **지금 여기** |
 | **5** | 깊이 줌 | 0 / 3 | 🅿️ **MVP 제외** (N-013) |
 | **6** | 품질 · 운영 | 1 / 4 | ⬜ |
 
@@ -176,7 +188,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | D-01 | 디자인 시스템 (토큰·타입·모션) | 디자인 | `docs/디자인/01-디자인시스템.md` | — | ✅ |
 | D-02 | 시안 A/B/C (리포트·하루·집중) | 디자인 | `docs/디자인/시안-A~C.html` | D-01 | ✅ |
 | D-03 | 시안 D — z=0 평생 (438,000시간) | 디자인 | `docs/디자인/시안-D-평생.html` | D-01, (Q-010) | ⬜ |
-| D-04 | 시안 E — 블록 생성 시트 | 디자인 | `docs/디자인/시안-E-블록생성.html` | D-01 | ⬜ |
+| D-04 | 시안 E — 블록 생성 시트 (기본 · 예산 초과 2상태) | 디자인 | `docs/디자인/시안-E-블록생성.html` | D-01 | ✅ |
 | D-05 | 온보딩 · 구글 연동 동의 화면 | 디자인 | `docs/디자인/시안-F-온보딩.html` | P-02 | ⬜ |
 | D-06 | 빈 상태 · 로딩 · 에러 화면 | 디자인 | `docs/디자인/시안-G-상태.html` | D-02 | ⬜ |
 | W-01 | WBS · 결정 로그 · 미결 사항 체계 | 기획 | `docs/wbs/*.md` | — | ✅ |
@@ -246,7 +258,7 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | U-03 | 리포트 화면 (시안 A → JSX) | 퍼블 | `app/page.tsx`, `components/{chart,report}/**`, `lib/format.ts` | U-02, D-02 | ✅ |
 | U-04 | 하루 화면 (시안 B → JSX) | 퍼블 | `app/day/page.tsx`, `components/day/{BudgetMeter,Timeline}` | U-02, D-02 | ✅ |
 | U-05 | 집중 화면 (시안 C → JSX) | 퍼블 | `app/focus/[blockId]/page.tsx` | U-02, D-02 | ⬜ |
-| U-06 | 블록 생성 시트 | 퍼블 | `components/block/BlockSheet.tsx` | D-04 | ⬜ |
+| U-06 | 블록 생성 시트 | 퍼블 | `components/day/BlockSheet.tsx` · `styles/screen-block-sheet.css` | D-04 | ✅ |
 | F-01 | **타이머 (서버 시간 동기 · hydration 안전)** ⭐ | 퍼블 | `hooks/useServerClock.ts` | B-04 | ⬜ |
 | F-02 | API 레이어 + 에러 처리 규약 | 퍼블 | `lib/api.ts` | B-14 | ⬜ |
 | F-03 | 차트 (링 · 캡슐 미터 · 타임라인) | 퍼블 | `components/chart/**` | B-07 | ⬜ |

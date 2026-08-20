@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NFS 시안 E — 블록 생성 시트 (S-05)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/*
+  시안 E — 블록 생성 시트 (S-05 · D-04)
+
+  이 화면이 다른 화면과 다른 점:
+    · 전체 화면이 아니라 **하루 화면 위에 얹히는 시트**다. 뒤가 보여야 맥락이 끊기지 않는다
+    · 주 오브젝트가 입력 폼이 아니라 **"만들면 얼마가 남는가"** 다.
+      폼을 위에 두면 이 앱은 그냥 일정 등록기가 된다. 남는 시간이 먼저 보여야 한다
+    · 그래서 미리보기에 하루 화면의 **캡슐 미터를 그대로 다시 쓴다.**
+      새 블록이 먹을 자리를 고스트 세그먼트로 얹어, 미터 하나로 "before → after"를 말한다
+*/
+:root{
+  --bg:#08080B;
+  --s1:rgba(255,255,255,.045);
+  --s2:rgba(255,255,255,.075);
+  --hair:rgba(255,255,255,.09);
+  --hair-2:rgba(255,255,255,.055);
+  --tx:#F6F6F8;
+  --tx2:rgba(246,246,248,.60);
+  --tx3:rgba(246,246,248,.34);
+
+  --dev:#7C8CFF; --meet:#FF8066; --study:#B08BFA;
+  --family:#3DDC97; --health:#FFC24B; --self:#4DD8E8; --chore:#8E9AAE;
+  --now:#FFB020; --warn:#FF8066;
+
+  --r-xl:30px; --r-lg:22px; --r-md:16px;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --hr:46px;
+  --f:'Instrument Sans','Noto Sans KR',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#101014;font-family:var(--f);color:var(--tx);
+  -webkit-font-smoothing:antialiased;display:flex;flex-wrap:wrap;gap:34px;
+  justify-content:center;align-items:flex-start;padding:40px 20px;min-height:100vh}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+.case{display:flex;flex-direction:column;align-items:center;gap:13px}
+.case > figcaption{font-size:12.5px;color:var(--tx3);letter-spacing:-.01em;text-align:center;max-width:390px;line-height:1.5}
+.case > figcaption b{color:var(--tx2);font-weight:600}
+
+.device{position:relative;width:390px;height:844px;border-radius:54px;overflow:hidden;
+  background:var(--bg);
+  box-shadow:0 0 0 11px #17171B,0 0 0 12.5px #34343B,0 50px 110px rgba(0,0,0,.75)}
+@media (min-width:521px) and (max-height:980px){.device{transform:scale(.86);transform-origin:top center}}
+@media (max-width:520px){
+  body{display:block;padding:0}
+  .case{gap:0}
+  .case > figcaption{padding:14px 22px 26px}
+  .device{width:100%;height:100dvh;border-radius:0;box-shadow:none}
+}
+
+/* ── 뒤에 남은 하루 화면 ─────────────────────
+   시트가 뜬 동안에도 "오늘"이 뒤에 살아 있다. 맥락을 끊지 않으려고 지우지 않고 눌러둔다 */
+.bloom{position:absolute;left:-35%;right:-35%;top:20%;height:54%;pointer-events:none;
+  background:radial-gradient(48% 50% at 50% 42%,rgba(255,176,32,.20),transparent 70%);
+  filter:blur(30px)}
+.behind{position:absolute;inset:0;padding:56px 14px 0;filter:blur(1.5px);opacity:.5}
+.behind .nav{display:flex;align-items:flex-start;justify-content:space-between;padding:0 8px}
+.behind h1{margin:0;font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1.1}
+.behind h1 span{display:block;font-size:12.5px;font-weight:400;color:var(--tx3);margin-top:4px}
+.behind .card{margin-top:20px;height:132px;border-radius:var(--r-xl);border:1px solid var(--hair);
+  background:linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.02))}
+.behind .row{margin-top:14px;height:46px;border-radius:var(--r-md);
+  border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.035)}
+
+/* 스크림 — 시트 뒤를 눌러 닫는 자리이기도 하다 */
+.scrim{position:absolute;inset:0;background:rgba(4,4,6,.62);backdrop-filter:blur(3px)}
+
+/* ── 시트 ──────────────────────────────────
+   상단만 둥글다. 화면 아래에서 올라온 물체라는 걸 형태가 말한다 */
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:92%;
+  border-radius:30px 30px 0 0;border:1px solid var(--hair);border-bottom:0;
+  background:linear-gradient(180deg,rgba(28,28,34,.94),rgba(14,14,18,.97));
+  backdrop-filter:blur(30px) saturate(150%);
+  box-shadow:0 -20px 60px rgba(0,0,0,.6);
+  display:flex;flex-direction:column;overflow:hidden}
+.grab{width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);
+  margin:9px auto 0;flex:none}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:12px 22px 0;flex:none}
+.sheet-h h2{margin:0;font-size:19px;font-weight:600;letter-spacing:-.03em}
+.x{width:32px;height:32px;border-radius:99px;background:var(--s1);border:1px solid var(--hair);
+  display:grid;place-items:center;color:var(--tx2)}
+.body{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding:0 0 4px}
+.body::-webkit-scrollbar{display:none}
+
+/* ── 미리보기 : 이 시트의 주 오브젝트 ────────
+   "만들면 얼마가 남는가". 값이 아니라 **결과**를 먼저 보여준다 */
+.pre{margin:16px 14px 0;padding:17px 18px 15px;border-radius:var(--r-xl);
+  border:1px solid var(--hair);
+  background:linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.02))}
+.pre-cap{font-size:12.5px;color:var(--tx2);letter-spacing:-.01em}
+.pre-num{margin:6px 0 0;display:flex;align-items:baseline;gap:10px;
+  font-size:42px;font-weight:600;letter-spacing:-.045em;line-height:1}
+.pre-num i{font-style:normal;font-size:18px;font-weight:500;color:var(--tx2);
+  letter-spacing:-.02em;margin:0 6px 0 1px}
+/* 델타는 작게. 주인공은 '남는 시간'이지 '깎이는 양'이 아니다 */
+.delta{font-size:12px;font-weight:600;letter-spacing:-.01em;color:var(--tx2);
+  background:rgba(255,255,255,.07);border:1px solid var(--hair);border-radius:99px;
+  padding:3px 9px;transform:translateY(-4px)}
+
+.meter{display:flex;gap:3px;height:11px;margin-top:14px}
+.meter i{display:block;border-radius:99px}
+.m-cal{background:repeating-linear-gradient(115deg,rgba(255,255,255,.32) 0 2px,rgba(255,255,255,.09) 2px 6px)}
+.m-nfs{background:linear-gradient(90deg,var(--dev),#9AA6FF);box-shadow:0 0 14px rgba(124,140,255,.65)}
+/* 고스트 = 지금 만들려는 블록. 아직 없는 것이므로 테두리만 있고 속이 비었다 */
+.m-new{border:1px dashed color-mix(in srgb,var(--c,var(--dev)) 75%,transparent);
+  background:color-mix(in srgb,var(--c,var(--dev)) 18%,transparent)}
+.m-free{background:rgba(255,255,255,.07)}
+.keys{display:flex;gap:12px;margin-top:11px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.keys b{width:7px;height:7px;border-radius:99px;display:block}
+.keys .ghost{border:1px dashed var(--dev);background:transparent}
+
+/* ── 폼 ────────────────────────────────────
+   라벨은 줄 위에 얹지 않고 왼쪽에 세운다. 세로 스크롤을 줄여 시트를 낮게 유지한다 */
+.field{margin:20px 22px 0}
+.field > label{display:block;font-size:12px;font-weight:500;color:var(--tx3);
+  letter-spacing:-.005em;margin-bottom:9px}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:99px;
+  background:var(--s1);border:1px solid var(--hair);color:var(--tx2);
+  font-size:13px;font-weight:500;letter-spacing:-.015em;cursor:pointer}
+.chip b{width:8px;height:8px;border-radius:99px;background:var(--c);display:block}
+/* 선택은 카테고리 색으로 말한다 — 색을 갖는 건 콘텐츠뿐이다 */
+.chip.on{color:var(--tx);font-weight:600;
+  background:color-mix(in srgb,var(--c) 22%,transparent);
+  border-color:color-mix(in srgb,var(--c) 55%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 18%,transparent)}
+.chip:focus-visible{outline:2px solid var(--tx2);outline-offset:2px}
+
+.input{width:100%;height:48px;border-radius:var(--r-md);background:var(--s1);
+  border:1px solid var(--hair);color:var(--tx);font-family:var(--f);
+  font-size:14.5px;letter-spacing:-.012em;padding:0 15px}
+.input::placeholder{color:var(--tx3)}
+.input:focus{outline:none;border-color:rgba(255,255,255,.22);background:var(--s2)}
+
+/* 시작 시각 — 30분 격자. 가로로 흘려 "다음 칸"이 있다는 걸 보여준다 */
+.rail{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;
+  margin:0 -22px;padding:0 22px 2px}
+.rail::-webkit-scrollbar{display:none}
+.rail .chip{flex:none}
+.chip.now{background:rgba(255,176,32,.14);border-color:rgba(255,176,32,.42);color:var(--now)}
+.chip.now.on{background:rgba(255,176,32,.22);border-color:rgba(255,176,32,.7);color:#FFD48A;font-weight:600}
+
+.len{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.len .chip{justify-content:center;padding:0}
+
+/* ── 예산 초과 (걸릴 때만 나온다 · N-010) ──── */
+.over{margin:16px 14px 0;padding:15px 17px;border-radius:var(--r-lg);
+  border:1px solid color-mix(in srgb,var(--warn) 38%,transparent);
+  background:color-mix(in srgb,var(--warn) 11%,transparent)}
+.over-t{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;
+  letter-spacing:-.02em;color:#FFB6A5}
+.over-l{margin:11px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+.over-l li{display:flex;align-items:center;justify-content:space-between;
+  font-size:12.5px;color:var(--tx2);letter-spacing:-.01em}
+.over-l li b{display:inline-flex;align-items:center;gap:7px;font-weight:400}
+.over-l li b i{width:7px;height:7px;border-radius:99px;background:var(--c);font-style:normal}
+.over-a{display:block;margin-top:12px;height:40px;border-radius:99px;
+  background:rgba(255,255,255,.07);border:1px solid var(--hair);
+  color:var(--tx);font-size:13px;font-weight:600;letter-spacing:-.02em;
+  display:flex;align-items:center;justify-content:center;text-decoration:none}
+
+/* ── 액션 ──────────────────────────────────
+   시트 안에서 스크롤과 무관하게 항상 손에 닿는 자리에 고정한다 */
+.acts{flex:none;padding:16px 22px calc(20px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--hair-2);
+  background:linear-gradient(180deg,rgba(14,14,18,.2),rgba(14,14,18,.92) 40%);
+  display:flex;flex-direction:column;gap:9px}
+.btn{height:56px;border-radius:99px;border:0;font-family:var(--f);
+  font-size:15.5px;font-weight:600;letter-spacing:-.025em;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:var(--tx);color:#0A0A0D}
+.btn-s{background:rgba(255,255,255,.07);border:1px solid var(--hair);color:var(--tx)}
+.btn:active{transform:scale(.975)}
+.btn[disabled]{opacity:.36;cursor:not-allowed}
+.hint{margin:2px 0 0;text-align:center;font-size:11.5px;color:var(--tx3);letter-spacing:-.005em}
+
+@media (prefers-reduced-motion:no-preference){
+  .sheet{animation:rise .52s var(--ease) both}
+  @keyframes rise{from{transform:translateY(26px);opacity:.4}to{transform:none;opacity:1}}
+  .pre{animation:up .6s var(--ease) both .08s}
+  .field{animation:up .6s var(--ease) both .12s}
+  .field:nth-of-type(2){animation-delay:.16s}
+  .field:nth-of-type(3){animation-delay:.2s}
+  .field:nth-of-type(4){animation-delay:.24s}
+  @keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ 기본 상태 ══════════════════════════════════════════ -->
+<figure class="case" style="margin:0">
+  <div class="device">
+    <div class="bloom"></div>
+
+    <div class="behind" aria-hidden="true">
+      <div class="nav"><h1>오늘<span>8월 20일 목요일</span></h1></div>
+      <div class="card"></div>
+      <div class="row"></div><div class="row"></div><div class="row"></div>
+    </div>
+    <div class="scrim"></div>
+
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="t1">
+      <div class="grab"></div>
+      <div class="sheet-h">
+        <h2 id="t1">블록 만들기</h2>
+        <button class="x" aria-label="닫기">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 1l11 11M12 1L1 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="body">
+        <!-- 주 오브젝트 : 만들면 얼마가 남는가 -->
+        <section class="pre">
+          <div class="pre-cap">이 블록을 만들면 오늘 남은 시간</div>
+          <p class="pre-num num">12<i>시간</i>30<i>분</i><span class="delta num">−1시간</span></p>
+
+          <div class="meter" style="--c:var(--dev)"
+               role="img" aria-label="24시간 중 캘린더 7시간, 내 블록 3시간 30분, 새 블록 1시간, 남음 12시간 30분">
+            <i class="m-cal" style="width:29.2%"></i>
+            <i class="m-nfs" style="width:14.6%"></i>
+            <i class="m-new" style="width:4.2%"></i>
+            <i class="m-free" style="width:52%"></i>
+          </div>
+          <div class="keys">
+            <span><b style="background:rgba(255,255,255,.3)"></b>캘린더 <span class="num">7:00</span></span>
+            <span><b style="background:var(--dev)"></b>내 블록 <span class="num">3:30</span></span>
+            <span><b class="ghost"></b>새 블록 <span class="num">1:00</span></span>
+            <span><b style="background:rgba(255,255,255,.12)"></b>남음 <span class="num">12:30</span></span>
+          </div>
+        </section>
+
+        <!-- 카테고리 : 유일한 필수 입력. 그래서 맨 위다 -->
+        <div class="field">
+          <label id="l-cat">카테고리</label>
+          <div class="chips" role="radiogroup" aria-labelledby="l-cat">
+            <button class="chip on" style="--c:var(--dev)" role="radio" aria-checked="true"><b></b>개발</button>
+            <button class="chip" style="--c:var(--meet)" role="radio" aria-checked="false"><b></b>회의</button>
+            <button class="chip" style="--c:var(--study)" role="radio" aria-checked="false"><b></b>학습</button>
+            <button class="chip" style="--c:var(--family)" role="radio" aria-checked="false"><b></b>가족</button>
+            <button class="chip" style="--c:var(--health)" role="radio" aria-checked="false"><b></b>건강</button>
+            <button class="chip" style="--c:var(--self)" role="radio" aria-checked="false"><b></b>개인</button>
+            <button class="chip" style="--c:var(--chore)" role="radio" aria-checked="false"><b></b>잡무</button>
+          </div>
+        </div>
+
+        <!-- 제목 : 선택. 비우면 태그명이 들어간다는 걸 placeholder 가 말한다 -->
+        <div class="field">
+          <label for="i-title">제목</label>
+          <input id="i-title" class="input" type="text" maxlength="100" placeholder="개발" enterkeyhint="done">
+        </div>
+
+        <div class="field">
+          <label id="l-start">시작</label>
+          <div class="rail" role="radiogroup" aria-labelledby="l-start">
+            <button class="chip now on" role="radio" aria-checked="true"><span class="num">지금 14:30</span></button>
+            <button class="chip num" role="radio" aria-checked="false">15:00</button>
+            <button class="chip num" role="radio" aria-checked="false">15:30</button>
+            <button class="chip num" role="radio" aria-checked="false">16:00</button>
+            <button class="chip num" role="radio" aria-checked="false">16:30</button>
+            <button class="chip num" role="radio" aria-checked="false">17:00</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label id="l-len">길이</label>
+          <div class="len" role="radiogroup" aria-labelledby="l-len">
+            <button class="chip" role="radio" aria-checked="false"><span class="num">30분</span></button>
+            <button class="chip on" style="--c:var(--dev)" role="radio" aria-checked="true"><span class="num">60분</span></button>
+            <button class="chip" role="radio" aria-checked="false"><span class="num">90분</span></button>
+            <button class="chip" role="radio" aria-checked="false"><span class="num">120분</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="acts">
+        <button class="btn btn-p">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor"><path d="M4 2.4v10.2c0 .5.5.8 1 .6l8.2-5.1a.7.7 0 0 0 0-1.2L5 1.8a.7.7 0 0 0-1 .6Z"/></svg>
+          지금 시작하기
+        </button>
+        <button class="btn btn-s">나중에 시작</button>
+        <p class="hint">지금 시작하면 집중 화면으로 넘어갑니다</p>
+      </div>
+    </section>
+  </div>
+  <figcaption><b>기본</b> — 주인공은 폼이 아니라 “만들면 얼마가 남는가”.<br>미터의 점선 고스트가 새 블록이 먹을 자리다.</figcaption>
+</figure>
+
+<!-- ══ 예산 초과 ══════════════════════════════════════════ -->
+<figure class="case" style="margin:0">
+  <div class="device">
+    <div class="bloom"></div>
+
+    <div class="behind" aria-hidden="true">
+      <div class="nav"><h1>오늘<span>8월 20일 목요일</span></h1></div>
+      <div class="card"></div>
+      <div class="row"></div><div class="row"></div><div class="row"></div>
+    </div>
+    <div class="scrim"></div>
+
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="t2">
+      <div class="grab"></div>
+      <div class="sheet-h">
+        <h2 id="t2">블록 만들기</h2>
+        <button class="x" aria-label="닫기">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 1l11 11M12 1L1 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="body">
+        <!-- 초과일 때는 미리보기가 경고를 대신한다. 배너를 따로 얹지 않는다 -->
+        <section class="over">
+          <div class="over-t">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.6 14 13.4H1L7.5 1.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.5 6v3.1M7.5 11.2h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            오늘 남은 <span class="num">4시간</span>을 넘습니다
+          </div>
+          <ul class="over-l">
+            <li><b style="--c:var(--meet)"><i></i>파트너사 미팅</b><span class="num">2:00</span></li>
+            <li><b style="--c:var(--dev)"><i></i>설계 문서 정리</b><span class="num">3:00</span></li>
+            <li><b style="--c:var(--family)"><i></i>저녁 약속</b><span class="num">1:30</span></li>
+          </ul>
+          <a class="over-a" href="#">통계에서 뺄 일정 고르기</a>
+        </section>
+
+        <section class="pre" style="border-color:color-mix(in srgb,var(--warn) 26%,transparent)">
+          <div class="pre-cap">이 블록을 만들면 오늘 남은 시간</div>
+          <p class="pre-num num" style="color:#FFB6A5">−30<i style="color:#FFB6A5;opacity:.7">분</i>
+            <span class="delta num" style="color:#FFB6A5;border-color:color-mix(in srgb,var(--warn) 40%,transparent);background:color-mix(in srgb,var(--warn) 14%,transparent)">−4시간 30분</span></p>
+
+          <div class="meter" style="--c:var(--warn)"
+               role="img" aria-label="24시간이 이미 다 찼습니다. 새 블록 4시간 30분이 남은 4시간을 넘습니다">
+            <i class="m-cal" style="width:48%"></i>
+            <i class="m-nfs" style="width:35.3%"></i>
+            <i class="m-new" style="width:16.7%"></i>
+          </div>
+          <div class="keys">
+            <span><b style="background:rgba(255,255,255,.3)"></b>캘린더 <span class="num">11:30</span></span>
+            <span><b style="background:var(--dev)"></b>내 블록 <span class="num">8:30</span></span>
+            <span><b class="ghost" style="border-color:var(--warn)"></b>새 블록 <span class="num">4:30</span></span>
+          </div>
+        </section>
+
+        <div class="field">
+          <label id="l-cat2">카테고리</label>
+          <div class="chips" role="radiogroup" aria-labelledby="l-cat2">
+            <button class="chip" style="--c:var(--dev)" role="radio" aria-checked="false"><b></b>개발</button>
+            <button class="chip" style="--c:var(--meet)" role="radio" aria-checked="false"><b></b>회의</button>
+            <button class="chip on" style="--c:var(--study)" role="radio" aria-checked="true"><b></b>학습</button>
+            <button class="chip" style="--c:var(--family)" role="radio" aria-checked="false"><b></b>가족</button>
+            <button class="chip" style="--c:var(--health)" role="radio" aria-checked="false"><b></b>건강</button>
+            <button class="chip" style="--c:var(--self)" role="radio" aria-checked="false"><b></b>개인</button>
+            <button class="chip" style="--c:var(--chore)" role="radio" aria-checked="false"><b></b>잡무</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="i-title2">제목</label>
+          <input id="i-title2" class="input" type="text" maxlength="100" value="논문 읽기">
+        </div>
+
+        <div class="field">
+          <label id="l-start2">시작</label>
+          <div class="rail" role="radiogroup" aria-labelledby="l-start2">
+            <button class="chip now" role="radio" aria-checked="false"><span class="num">지금 20:30</span></button>
+            <button class="chip num on" style="--c:var(--study)" role="radio" aria-checked="true">21:00</button>
+            <button class="chip num" role="radio" aria-checked="false">21:30</button>
+            <button class="chip num" role="radio" aria-checked="false">22:00</button>
+            <button class="chip num" role="radio" aria-checked="false">22:30</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label id="l-len2">길이</label>
+          <div class="len" role="radiogroup" aria-labelledby="l-len2">
+            <button class="chip" role="radio" aria-checked="false"><span class="num">30분</span></button>
+            <button class="chip" role="radio" aria-checked="false"><span class="num">60분</span></button>
+            <button class="chip" role="radio" aria-checked="false"><span class="num">90분</span></button>
+            <button class="chip on" style="--c:var(--warn)" role="radio" aria-checked="true"><span class="num">120분</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="acts">
+        <button class="btn btn-p" disabled>지금 시작하기</button>
+        <button class="btn btn-s" disabled>나중에 시작</button>
+        <p class="hint">길이를 줄이거나 겹치는 일정을 통계에서 빼면 만들 수 있습니다</p>
+      </div>
+    </section>
+  </div>
+  <figcaption><b>예산 초과</b> — 경고 배너를 따로 얹지 않고 미리보기 숫자가 음수로 돈다.<br>막는 이유(점유 내역)와 푸는 길을 같은 자리에서 준다.</figcaption>
+</figure>
+
+</body>
+</html>

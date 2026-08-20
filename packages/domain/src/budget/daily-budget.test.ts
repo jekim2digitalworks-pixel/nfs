@@ -5,6 +5,7 @@ import {
     assertWithinDailyCap,
     calculateDailyBudget,
     marginalMinutesOf,
+    previewWithCandidate,
     withCandidate,
     type BudgetOccupant,
     type DailyBudgetInput,
@@ -439,5 +440,99 @@ describe('출력 규약', () => {
             expect(error.message).toBe('오늘은 더 넣을 자리가 없습니다');
             expect(error.detail?.['occupiedBy']).toEqual([]);
         }
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+
+describe('⭐ 생성 시트 미리보기 — 서버 검증과 같은 판정이어야 한다 (S-05 · U-06)', () => {
+    /** 0시부터 minutes 분을 통째로 차지하는 캘린더 일정 */
+    function occupying(minutes: number): BudgetOccupant {
+        const endHour = Math.floor(minutes / 60);
+        const endMinuteOfHour = minutes % 60;
+        const endClock = `${String(endHour).padStart(2, '0')}:${String(endMinuteOfHour).padStart(2, '0')}`;
+        return calendar('00:00', endClock);
+    }
+
+    it('빈 자리에 놓으면 그 길이만큼 줄어든다', () => {
+        const preview = previewWithCandidate(budgetOf([]), block('10:00', '11:00'));
+
+        expect(preview.requestedMinutes).toBe(60);
+        expect(preview.remainingAfterMinutes).toBe(1440 - 60);
+        expect(preview.isExceeded).toBe(false);
+    });
+
+    it('⭐ 겹치는 자리에 놓으면 남는 시간은 겹친 만큼만 줄어든다 (합집합)', () => {
+        // 화면이 "60분 줄어든다"고 말하면 미터와 숫자가 어긋난다.
+        // 남는 시간은 **합집합** 기준이고, 요구량(requested)은 **길이** 기준이다 — 둘은 다른 값이다
+        const input = budgetOf([calendar('10:00', '11:00')]);
+        const preview = previewWithCandidate(input, block('10:30', '11:30'));
+
+        expect(preview.requestedMinutes).toBe(60); // 예산 검증이 청구하는 값
+        expect(preview.remainingAfterMinutes).toBe(1440 - 90); // 실제로 점유가 늘어난 값
+        expect(preview.isExceeded).toBe(false);
+    });
+
+    it('남은 시간과 정확히 같으면 아직 초과가 아니다 (경계)', () => {
+        const preview = previewWithCandidate(budgetOf([occupying(1380)]), block('23:00', '24:00'));
+
+        expect(preview.before.remainingMinutes).toBe(60);
+        expect(preview.isExceeded).toBe(false);
+        expect(preview.remainingAfterMinutes).toBe(0);
+    });
+
+    it('1분이라도 넘으면 초과다 (경계)', () => {
+        const preview = previewWithCandidate(budgetOf([occupying(1380)]), block('22:59', '24:00'));
+
+        expect(preview.requestedMinutes).toBe(61);
+        expect(preview.isExceeded).toBe(true);
+        // ⭐ 음수를 그대로 보여준다. 0 으로 접으면 "얼마나 넘었는지"가 사라진다
+        expect(preview.remainingAfterMinutes).toBe(-1);
+    });
+
+    it('⭐ 초과 판정이 서버의 assertBlockFitsInBudget 과 일치한다', () => {
+        // 이 테스트가 깨지면 화면이 "만들 수 있다"고 말한 걸 서버가 거절하기 시작한다
+        const cases: Array<[BudgetOccupant, number]> = [
+            [block('23:00', '24:00'), 1380],
+            [block('22:30', '24:00'), 1380],
+            [block('10:00', '11:00'), 1440],
+            [block('09:00', '12:00'), 0],
+        ];
+
+        for (const [candidate, occupiedMinutes] of cases) {
+            const occupants = occupiedMinutes > 0 ? [occupying(occupiedMinutes)] : [];
+            const input = budgetOf(occupants);
+            const preview = previewWithCandidate(input, candidate);
+
+            let serverRejected = false;
+            try {
+                assertBlockFitsInBudget(calculateDailyBudget(input), candidate);
+            } catch {
+                serverRejected = true;
+            }
+
+            expect(preview.isExceeded).toBe(serverRejected);
+        }
+    });
+
+    it('자정을 넘는 블록은 오늘 몫만 청구된다 (정책 §2.3)', () => {
+        const overnight = occupant('NFS_BLOCK', '23:00', '01:00', 'DEVELOPMENT', {
+            endDate: '2026-08-19',
+        });
+        const preview = previewWithCandidate(budgetOf([occupying(1380)]), overnight);
+
+        expect(preview.requestedMinutes).toBe(60); // 120분이 아니다
+        expect(preview.isExceeded).toBe(false);
+    });
+
+    it('그날에 안 걸치는 블록은 오늘 예산을 전혀 쓰지 않는다', () => {
+        const tomorrow = occupant('NFS_BLOCK', '10:00', '11:00', 'DEVELOPMENT', {
+            startDate: '2026-08-19',
+            endDate: '2026-08-19',
+        });
+        const preview = previewWithCandidate(budgetOf([occupying(1440)]), tomorrow);
+
+        expect(preview.requestedMinutes).toBe(0);
+        expect(preview.isExceeded).toBe(false);
     });
 });

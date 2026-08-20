@@ -1,0 +1,341 @@
+/*
+ * S-05 블록 생성 시트 (U-06 · 시안 E)
+ *
+ * 하루 화면 위에 얹히는 모달이다. 전체 화면이 아니므로 화면 클래스가 아니라
+ * 레이어(.sheet-layer) 안에서만 산다. 값은 전부 tokens.css 에서 온다.
+ */
+
+.sheet-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+/* 스크림도 버튼이다 — 시트 밖은 전부 '취소'. 그래서 버튼 기본 스타일을 지운다 */
+.sheet-scrim {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: rgba(4, 4, 6, 0.62);
+    backdrop-filter: blur(3px);
+}
+
+/* 상단만 둥글다. 아래에서 올라온 물체라는 걸 형태가 말한다 */
+.sheet-block {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 92dvh;
+    border: 1px solid var(--hair);
+    border-bottom: 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    background: linear-gradient(180deg, rgba(28, 28, 34, 0.94), rgba(14, 14, 18, 0.97));
+    backdrop-filter: blur(30px) saturate(150%);
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.sheet-grab {
+    flex: none;
+    width: 38px;
+    height: 4px;
+    margin: 9px auto 0;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.sheet-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px var(--pad-screen) 0;
+}
+.sheet-head h2 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+}
+
+.sheet-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+}
+.sheet-body::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── 미리보기 : 이 시트의 주 오브젝트 ───────────────────
+   "만들면 얼마가 남는가". 값이 아니라 결과를 먼저 보여준다 */
+.sheet-block .pre {
+    margin: 16px var(--pad-card) 0;
+    padding: 17px 18px 15px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-xl);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+}
+.sheet-block .pre--over {
+    border-color: color-mix(in srgb, var(--warn) 26%, transparent);
+}
+.sheet-block .pre-cap {
+    margin: 0;
+    font-size: var(--t-label);
+    color: var(--tx2);
+    letter-spacing: -0.01em;
+}
+.sheet-block .pre-num {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 6px 0 0;
+    font-size: var(--t-budget);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1;
+}
+.sheet-block .pre-num i {
+    margin: 0 6px 0 1px;
+    font-style: normal;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--tx2);
+    letter-spacing: -0.02em;
+}
+.sheet-block .pre--over .pre-num {
+    color: var(--warn);
+}
+
+/* 델타는 작게. 주인공은 '남는 시간'이지 '깎이는 양'이 아니다 */
+.sheet-block .delta {
+    transform: translateY(-4px);
+    padding: 3px 9px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tx2);
+    letter-spacing: -0.01em;
+}
+
+.sheet-block .meter {
+    display: flex;
+    gap: 3px;
+    height: 11px;
+    margin-top: 14px;
+}
+.sheet-block .meter i {
+    display: block;
+    border-radius: var(--r-pill);
+}
+/* 새 블록은 아직 없는 것이다. 그래서 속이 비고 테두리만 있다 */
+.sheet-block .m-new {
+    border: 1px dashed color-mix(in srgb, var(--c, var(--dev)) 75%, transparent);
+    background: color-mix(in srgb, var(--c, var(--dev)) 18%, transparent);
+}
+.sheet-block .pre--over .m-new {
+    border-color: color-mix(in srgb, var(--warn) 75%, transparent);
+    background: color-mix(in srgb, var(--warn) 18%, transparent);
+}
+.sheet-block .keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 11px;
+    font-size: var(--t-caption);
+    color: var(--tx2);
+}
+.sheet-block .keys span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.sheet-block .keys b {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+}
+.sheet-block .key-new {
+    border: 1px dashed var(--c, var(--dev));
+}
+.sheet-block .key-used {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+/* ── 예산 초과 (걸릴 때만 나온다 · N-010) ──────────────── */
+.sheet-block .over {
+    margin: 16px var(--pad-card) 0;
+    padding: 15px 17px;
+    border: 1px solid color-mix(in srgb, var(--warn) 38%, transparent);
+    border-radius: var(--r-lg);
+    background: color-mix(in srgb, var(--warn) 11%, transparent);
+}
+.sheet-block .over-t {
+    margin: 0;
+    font-size: var(--t-body);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--warn);
+}
+.sheet-block .over-l {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 11px 0 0;
+    padding: 0;
+    list-style: none;
+}
+.sheet-block .over-l li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--t-label);
+    color: var(--tx2);
+    letter-spacing: -0.01em;
+}
+.sheet-block .over-l b {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 400;
+}
+
+/* ── 폼 ─────────────────────────────────────────────── */
+.sheet-block .field {
+    margin: 20px var(--pad-screen) 0;
+}
+.sheet-block .field-label {
+    display: block;
+    margin: 0 0 9px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tx3);
+    letter-spacing: -0.005em;
+}
+
+.sheet-block .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.sheet-block .chip {
+    height: 36px;
+    color: var(--tx2);
+    cursor: pointer;
+}
+/* 선택은 카테고리 색으로 말한다 — 색을 갖는 건 콘텐츠뿐이다 (디자인 §1.2) */
+.sheet-block .chip--on {
+    color: var(--tx);
+    font-weight: 600;
+    background: color-mix(in srgb, var(--c, var(--tx2)) 22%, transparent);
+    border-color: color-mix(in srgb, var(--c, var(--tx2)) 55%, transparent);
+}
+.sheet-block .chip--now {
+    --c: var(--now);
+    color: var(--now);
+    border-color: color-mix(in srgb, var(--now) 42%, transparent);
+    background: color-mix(in srgb, var(--now) 14%, transparent);
+}
+
+.sheet-block .input {
+    width: 100%;
+    height: 48px;
+    padding: 0 15px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-md);
+    background: var(--s1);
+    color: var(--tx);
+    font-family: var(--f);
+    font-size: var(--t-body);
+    letter-spacing: -0.012em;
+}
+.sheet-block .input::placeholder {
+    color: var(--tx3);
+}
+.sheet-block .input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.22);
+    background: var(--s2);
+}
+
+/* 시작 시각 — 가로로 흘려 "다음 칸이 더 있다"는 걸 보여준다 */
+.sheet-block .rail {
+    display: flex;
+    gap: 7px;
+    margin: 0 calc(var(--pad-screen) * -1);
+    padding: 0 var(--pad-screen) 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.sheet-block .rail::-webkit-scrollbar {
+    display: none;
+}
+.sheet-block .rail .chip {
+    flex: none;
+}
+
+.sheet-block .lens {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+}
+.sheet-block .lens .chip {
+    justify-content: center;
+    padding: 0;
+}
+
+/* ── 액션 : 스크롤과 무관하게 항상 손에 닿는 자리 ────────── */
+.sheet-acts {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 16px var(--pad-screen) calc(20px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--hair-2);
+    background: linear-gradient(180deg, rgba(14, 14, 18, 0.2), rgba(14, 14, 18, 0.92) 40%);
+}
+.sheet-acts .btn:disabled {
+    opacity: 0.36;
+    cursor: not-allowed;
+}
+.sheet-error {
+    margin: 0;
+    padding: 10px 14px;
+    border: 1px solid color-mix(in srgb, var(--warn) 38%, transparent);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--warn) 11%, transparent);
+    color: var(--warn);
+    font-size: var(--t-label);
+    letter-spacing: -0.01em;
+}
+.sheet-hint {
+    margin: 2px 0 0;
+    text-align: center;
+    font-size: var(--t-caption);
+    color: var(--tx3);
+    letter-spacing: -0.005em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .sheet-block {
+        animation: sheet-rise 0.52s var(--ease) both;
+    }
+    @keyframes sheet-rise {
+        from {
+            transform: translateY(26px);
+            opacity: 0.4;
+        }
+        to {
+            transform: none;
+            opacity: 1;
+        }
+    }
+}

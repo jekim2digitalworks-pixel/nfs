@@ -1,5 +1,7 @@
-/* 순서 고정: 토큰 → 리셋 → 컴포넌트. 뒤에서 앞을 덮어쓴다 */
+/* 순서 고정: 토큰 → 리셋 → 컴포넌트 → 화면. 뒤에서 앞을 덮어쓴다 */
 @import '../styles/tokens.css';
 @import '../styles/base.css';
 @import '../styles/components.css';
 @import '../styles/screen-report.css';
+@import '../styles/screen-day.css';
+@import '../styles/screen-block-sheet.css';

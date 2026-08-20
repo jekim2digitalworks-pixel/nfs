@@ -14,11 +14,13 @@ export {
     calculateDailyBudget,
     marginalMinutesOf,
     withCandidate,
+    previewWithCandidate,
     assertWithinDailyCap,
     assertBlockFitsInBudget,
     type BudgetOccupant,
     type DailyBudgetInput,
     type DailyBudgetResult,
+    type CandidatePreview,
     type OccupantAttribution,
     type TagBudget,
 } from './daily-budget';

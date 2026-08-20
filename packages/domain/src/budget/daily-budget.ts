@@ -307,21 +307,72 @@ export function assertWithinDailyCap(result: DailyBudgetResult): void {
  * 자정을 넘는 블록은 그날 몫만 청구된다 (정책 §2.3).
  * 23:00–01:00 블록은 오늘 예산에서 60분만 쓴다 — 나머지 60분은 내일 예산에서 따로 검사한다.
  */
+/**
+ * 후보가 **그날의 예산에서 실제로 요구하는 분**.
+ *
+ * 자정을 넘는 블록은 그날에 걸친 부분만 그날 예산을 쓴다.
+ * 그날에 아예 안 걸치면 0 이다 — 이 날의 예산과 무관하다는 뜻이다.
+ */
+function requestedMinutesOf(candidate: BudgetOccupant, workDate: string): number {
+    const candidateRange = clipRangeToDate(candidate.startTime, candidate.endTime, workDate);
+
+    if (candidateRange === null) {
+        return 0;
+    }
+    return lengthOfRange(candidateRange);
+}
+
+/** 후보를 넣기 전/후를 한 번에 보여준다. 생성 시트(S-05)의 미리보기가 쓴다 */
+export interface CandidatePreview {
+    /** 후보를 빼고 계산한 현재 예산 */
+    before: DailyBudgetResult;
+    /** 후보가 그날 예산에서 요구하는 분 */
+    requestedMinutes: number;
+    /** 만들고 나면 남는 분. **초과하면 음수**다 — 0으로 접으면 얼마나 넘었는지가 사라진다 */
+    remainingAfterMinutes: number;
+    /** true 면 `assertBlockFitsInBudget` 이 거절한다 */
+    isExceeded: boolean;
+}
+
+/**
+ * ⭐ **화면의 미리보기와 서버의 검증이 같은 판정을 쓰게 만드는 함수.**
+ *
+ * 생성 시트는 칩을 누를 때마다 이걸 부르고, 서버는 `assertBlockFitsInBudget` 으로 막는다.
+ * 둘이 같은 `requestedMinutesOf` 와 같은 비교식을 쓰므로
+ * **화면이 "만들 수 있다"고 말한 걸 서버가 거절하는 일이 구조적으로 없다.**
+ * (판정을 화면에 한 벌 더 적으면 반드시 언젠가 갈린다)
+ */
+export function previewWithCandidate(
+    input: DailyBudgetInput,
+    candidate: BudgetOccupant,
+): CandidatePreview {
+    const before = calculateDailyBudget(input);
+    const requestedMinutes = requestedMinutesOf(candidate, input.workDate);
+    const isExceeded = requestedMinutes > before.remainingMinutes;
+
+    let remainingAfterMinutes: number;
+
+    if (isExceeded) {
+        remainingAfterMinutes = before.remainingMinutes - requestedMinutes;
+    } else {
+        // 겹치는 자리는 두 번 세지 않는다. 그래서 단순 뺄셈이 아니라 계산기를 다시 돌린다
+        const after = calculateDailyBudget(withCandidate(input, candidate));
+        remainingAfterMinutes = after.remainingMinutes;
+    }
+
+    return {
+        before: before,
+        requestedMinutes: requestedMinutes,
+        remainingAfterMinutes: remainingAfterMinutes,
+        isExceeded: isExceeded,
+    };
+}
+
 export function assertBlockFitsInBudget(
     existing: DailyBudgetResult,
     candidate: BudgetOccupant,
 ): void {
-    const candidateRange = clipRangeToDate(
-        candidate.startTime,
-        candidate.endTime,
-        existing.workDate,
-    );
-
-    if (candidateRange === null) {
-        return; // 그날에 걸치지 않는다. 이 날의 예산을 쓰지 않는다
-    }
-
-    const requestedMinutes = lengthOfRange(candidateRange);
+    const requestedMinutes = requestedMinutesOf(candidate, existing.workDate);
 
     if (requestedMinutes <= existing.remainingMinutes) {
         return;

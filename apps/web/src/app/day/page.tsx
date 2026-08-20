@@ -1,9 +1,16 @@
 import Link from 'next/link';
-import { minutesFromStartOfDay, minutesUntilMidnight, nowInAppZone, workDateOf } from '@nfs/domain/time';
+import {
+    minutesFromStartOfDay,
+    minutesUntilMidnight,
+    nowInAppZone,
+    toAppLocalString,
+    workDateOf,
+} from '@nfs/domain/time';
 import { currentMemberId } from '@/server/auth/session';
 import { listBlocksOfDate, loadDayBudget } from '@/server/services/block';
 import { loadDayOccupants } from '@/server/services/day-occupants';
 import { BudgetMeter } from '@/components/day/BudgetMeter';
+import { BlockSheet, type SerializedOccupant } from '@/components/day/BlockSheet';
 import { Timeline, type TimelineBlock, type TimelineEvent } from '@/components/day/Timeline';
 
 /**
@@ -101,6 +108,22 @@ export default async function DayPage() {
         });
     }
 
+    /**
+     * 시트가 미리보기를 **서버와 같은 계산기**로 계산하려면 점유자가 필요하다.
+     * Luxon DateTime 은 서버→클라 경계를 넘지 못하므로 로컬 시각 문자열로 바꿔 넘긴다.
+     */
+    const serializedOccupants: SerializedOccupant[] = [];
+    for (const occupant of occupants) {
+        serializedOccupants.push({
+            referenceKey: occupant.referenceKey,
+            sourceType: occupant.sourceType,
+            categoryTag: occupant.categoryTag,
+            title: occupant.title,
+            startTime: toAppLocalString(occupant.startTime),
+            endTime: toAppLocalString(occupant.endTime),
+        });
+    }
+
     return (
         <>
             {/* 하루 화면의 광원은 중앙의 따뜻한 앰버다 (디자인 §2.4) */}
@@ -159,13 +182,12 @@ export default async function DayPage() {
                     nowLabel={now.toFormat('HH:mm')}
                 />
 
-                {/* 블록 생성 시트는 U-06. 지금은 자리만 잡아둔다 */}
-                <Link className="fab" href="/day">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-                        <path d="M7.5 1v13M1 7.5h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                    블록
-                </Link>
+                {/* S-05 블록 생성 시트 (U-06). FAB 은 시트가 자기 트리거로 갖고 있다 */}
+                <BlockSheet
+                    workDate={workDate}
+                    nowLocal={toAppLocalString(now)}
+                    occupants={serializedOccupants}
+                />
             </main>
         </>
     );
