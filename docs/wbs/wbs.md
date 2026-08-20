@@ -114,7 +114,7 @@ apps/web/src/
 
 서비스와 필터는 다 만들었다. 남은 건 **연결 세 군데 + 실검증**이다.
 
-- [ ] `app/api/calendar/sync/route.ts` — `withMember` + `syncCurrentWeek(memberId, nowInAppZone())`
+- [x] `app/api/calendar/sync/route.ts` — 완료 (실패해도 200 + status 로 내려준다)
 - [ ] 하루 화면 헤더 버튼 — 지금 설정 링크 자리에 "캘린더 다시 불러오기"(화면정의서 S-03).
       클라이언트 컴포넌트에서 `postJson('/api/calendar/sync')` → `router.refresh()`
 - [ ] `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) → `syncCalendarWeek` 호출로 교체.
