@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NFS 시안 G — 빈 상태 · 로딩 · 에러 (D-06)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/*
+  시안 G — 빈 상태 · 로딩 · 에러 (D-06)
+
+  ─────────────────────────────────────────────────────────────
+  이 시안이 세우는 세 가지 규칙
+  ─────────────────────────────────────────────────────────────
+
+  1. 상태 화면도 **화면마다 구조가 다르다.**
+     아이콘 + 제목 + 버튼을 세로로 쌓은 공용 컴포넌트를 세 화면에 복붙하면
+     1차 시안이 기각된 이유(§1.1 "세 개 다 똑같은 UI에 색만 다르다")를 그대로 반복한다.
+     리포트의 주 오브젝트는 링이고, 하루의 주 오브젝트는 미터다.
+     **상태 화면에서도 그 오브젝트가 주인공이어야 한다.**
+
+  2. **로딩은 정상 화면과 같은 형태여야 하고, 빈 상태는 달라도 된다.**
+     로딩 → 정상은 *같은 사실이 도착하는* 것이라 한 픽셀도 움직이면 안 된다.
+     빈 상태 → 정상은 *다른 사실로 바뀌는* 것이라 레이아웃이 달라도 된다.
+     이 구분을 놓치면 스켈레톤을 대충 그리거나, 빈 상태를 억지로 정상 형태에 끼워 맞추게 된다.
+
+  3. **에러는 화면을 덮지 않는다** (화면정의서 §0.4).
+     실패한 조각의 자리에서만 말하고, **아직 아는 것은 남긴다.**
+     캘린더를 못 읽었다고 내 블록까지 지우면, 아는 것까지 잃는다.
+
+  ─────────────────────────────────────────────────────────────
+  문구 (화면정의서 §0.3)
+  ─────────────────────────────────────────────────────────────
+  · 시스템 용어 금지 — `동기화 실패` ✗ / `캘린더를 불러오지 못했어요` ✓
+  · 사과하지 않고 다음 행동을 준다 — `죄송합니다…` ✗ / `다시 불러오기` ✓
+  · **미연동은 에러가 아니다.** 경고색을 쓰지 않는다. 사고가 아니라 제안이다
+*/
+:root{
+  --bg:#08080B;
+  --s1:rgba(255,255,255,.045);
+  --s2:rgba(255,255,255,.075);
+  --hair:rgba(255,255,255,.09);
+  --hair-2:rgba(255,255,255,.055);
+  --tx:#F6F6F8;
+  --tx2:rgba(246,246,248,.60);
+  --tx3:rgba(246,246,248,.34);
+
+  --dev:#7C8CFF; --meet:#FF8066; --study:#B08BFA;
+  --family:#3DDC97; --health:#FFC24B; --self:#4DD8E8; --chore:#8E9AAE;
+  --now:#FFB020; --warn:#FF8066;
+
+  --r-xl:30px; --r-lg:22px; --r-md:16px;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --hr:46px;
+  --f:'Instrument Sans','Noto Sans KR',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#101014;font-family:var(--f);color:var(--tx);
+  -webkit-font-smoothing:antialiased;padding:40px 20px 60px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ── 시안 검토용 페이지 크롬 (제품이 아니다) ── */
+.page{max-width:1180px;margin:0 auto 38px;padding:0 4px}
+.page h1{margin:0;font-size:23px;font-weight:600;letter-spacing:-.035em}
+.page p{margin:10px 0 0;font-size:13.5px;line-height:1.7;color:var(--tx2);letter-spacing:-.012em;max-width:74ch}
+.page p b{color:var(--tx);font-weight:600}
+.rail-h{max-width:1180px;margin:0 auto 16px;padding:0 4px;
+  font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tx3)}
+.grid{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;align-items:flex-start;
+  max-width:1180px;margin:0 auto 46px}
+
+.case{display:flex;flex-direction:column;align-items:center;gap:13px;margin:0}
+.case > figcaption{font-size:12.5px;color:var(--tx3);letter-spacing:-.01em;text-align:center;
+  max-width:390px;line-height:1.55}
+.case > figcaption b{color:var(--tx2);font-weight:600}
+
+.device{position:relative;width:390px;height:844px;border-radius:54px;overflow:hidden;
+  background:var(--bg);
+  box-shadow:0 0 0 11px #17171B,0 0 0 12.5px #34343B,0 50px 110px rgba(0,0,0,.75)}
+@media (min-width:521px) and (max-height:980px){.device{transform:scale(.86);transform-origin:top center}}
+@media (max-width:520px){
+  body{padding:0}
+  .page{padding:26px 22px 0;margin-bottom:24px}
+  .rail-h{padding:0 22px}
+  .grid{display:block;margin-bottom:0}
+  .case{gap:0;margin-bottom:0}
+  .case > figcaption{padding:14px 22px 30px}
+  .device{width:100%;height:100dvh;border-radius:0;box-shadow:none}
+}
+
+/* ── 공용 화면 뼈대 (시안 A·B 와 동일 값) ───── */
+.screen{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.status{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:15px 30px 0;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:104px;height:30px;border-radius:16px;background:#000;z-index:6}
+.nav{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:22px 22px 0}
+.nav h1{margin:0;font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1.1}
+.nav h1 span{display:block;font-size:12.5px;font-weight:400;color:var(--tx3);
+  letter-spacing:-.005em;margin-top:4px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;
+  border-radius:99px;background:var(--s1);border:1px solid var(--hair);
+  font-size:14.5px;font-weight:500;color:var(--tx);backdrop-filter:blur(20px)}
+.icon-btn{position:relative;width:36px;height:36px;border-radius:99px;background:var(--s1);
+  border:1px solid var(--hair);display:grid;place-items:center;color:var(--tx2)}
+.tabs{position:absolute;z-index:20;left:50%;bottom:26px;transform:translateX(-50%);width:max-content;
+  display:flex;gap:2px;padding:5px;border-radius:99px;
+  background:rgba(22,22,28,.72);border:1px solid var(--hair);
+  backdrop-filter:blur(30px) saturate(180%);box-shadow:0 14px 40px rgba(0,0,0,.55)}
+.tabs a{display:flex;align-items:center;gap:7px;height:42px;padding:0 17px;border-radius:99px;
+  color:var(--tx3);text-decoration:none;font-size:13.5px;font-weight:500;letter-spacing:-.015em}
+.tabs a.on{background:var(--tx);color:#0A0A0D;font-weight:600}
+.pad{height:150px}
+
+.bloom-r{position:absolute;left:-30%;right:-30%;top:-24%;height:66%;pointer-events:none;
+  background:radial-gradient(55% 58% at 50% 20%,rgba(124,140,255,.30),transparent 72%);filter:blur(26px)}
+.bloom-d{position:absolute;left:-35%;right:-35%;top:20%;height:54%;pointer-events:none;
+  background:radial-gradient(48% 50% at 50% 42%,rgba(255,176,32,.20),transparent 70%);filter:blur(30px)}
+/* 로딩 중에는 블룸을 절반만 켠다. 아직 아무 값도 없는데 화면이 뜨거우면 거짓말이다 */
+.dim{opacity:.45}
+
+/* ══ 스켈레톤 ═══════════════════════════════════════════════
+   회색 박스가 아니라 **그 화면의 실루엣**이다.
+   반지름·높이·여백이 정상 화면과 같아야 데이터가 도착해도 아무것도 안 움직인다.
+
+   ⭐ 폭은 "실제로 올 글자 수"만큼만 잡는다.
+      100% 폭 바를 깔면 도착하는 순간 확 줄어 오히려 더 튄다. */
+.sk{position:relative;overflow:hidden;background:rgba(255,255,255,.055);border-radius:99px;
+  display:block}
+.sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.075),transparent)}
+/* 링은 쓸어내릴 수 없다 — 사각형이 아니기 때문이다. 대신 숨을 쉰다 */
+.sk-breathe{opacity:.75}
+
+@media (prefers-reduced-motion:no-preference){
+  .sk::after{animation:sweep 1.55s var(--ease) infinite}
+  @keyframes sweep{to{transform:translateX(100%)}}
+  .sk-breathe{animation:breathe 1.9s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.85}50%{opacity:.45}}
+}
+
+/* ══ 리포트 조각 (시안 A) ══════════════════════════════════ */
+.hero{position:relative;z-index:5;padding:26px 22px 0}
+.hero-cap{font-size:13.5px;color:var(--tx2);letter-spacing:-.01em;margin:0 0 8px}
+.hero-num{margin:0;font-size:62px;font-weight:600;letter-spacing:-.045em;line-height:.95}
+.hero-num em{font-style:normal;font-size:26px;font-weight:500;color:var(--tx2);
+  letter-spacing:-.02em;margin:0 10px 0 3px}
+.seg{position:relative;z-index:5;display:flex;margin:24px 22px 0;padding:3px;
+  background:var(--s1);border:1px solid var(--hair-2);border-radius:99px}
+.seg button{flex:1;height:34px;border:0;background:none;color:var(--tx2);
+  font-family:var(--f);font-size:13.5px;font-weight:500;letter-spacing:-.01em;border-radius:99px}
+.seg button.on{background:var(--s2);color:var(--tx);box-shadow:0 1px 0 rgba(255,255,255,.09) inset}
+
+.ring-wrap{position:relative;z-index:5;display:grid;place-items:center;margin:14px auto 0;
+  width:236px;height:236px}
+.ring-wrap svg{position:absolute;inset:0;width:100%;height:100%}
+.ring-mid{text-align:center}
+.ring-mid b{display:block;font-size:12px;font-weight:500;color:var(--tx3);letter-spacing:.01em}
+.ring-mid s{display:block;text-decoration:none;font-size:30px;font-weight:600;
+  letter-spacing:-.035em;margin-top:5px}
+.ring-mid u{display:block;text-decoration:none;font-size:12.5px;color:var(--tx2);margin-top:5px}
+
+.list{position:relative;z-index:5;margin:22px 14px 0;padding:6px;
+  background:var(--s1);border:1px solid var(--hair-2);border-radius:var(--r-xl);
+  backdrop-filter:blur(24px)}
+.row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;
+  padding:13px 14px;border-radius:var(--r-lg)}
+.row+.row{box-shadow:0 -1px 0 var(--hair-2)}
+.dot{width:9px;height:9px;border-radius:99px;box-shadow:0 0 11px currentColor}
+.row-name{font-size:15px;font-weight:500;letter-spacing:-.015em}
+.row-sub{font-size:12px;color:var(--tx3);margin-top:3px;letter-spacing:-.005em}
+.track{height:3px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:7px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:99px}
+.row-val{text-align:right}
+.row-val b{display:block;font-size:15.5px;font-weight:600;letter-spacing:-.02em}
+.row-val s{display:block;text-decoration:none;font-size:11.5px;color:var(--tx3);margin-top:3px}
+
+/* ══ 하루 조각 (시안 B) ════════════════════════════════════ */
+.budget{position:relative;z-index:5;margin:20px 14px 0;padding:19px 18px 17px;
+  border-radius:var(--r-xl);border:1px solid var(--hair);
+  background:linear-gradient(165deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  backdrop-filter:blur(26px)}
+.budget-cap{display:flex;align-items:center;justify-content:space-between;
+  font-size:12.5px;color:var(--tx2);letter-spacing:-.01em}
+.budget-cap em{font-style:normal;color:var(--tx3);font-size:11.5px}
+.budget-num{margin:7px 0 0;font-size:42px;font-weight:600;letter-spacing:-.045em;line-height:1}
+.budget-num i{font-style:normal;font-size:18px;font-weight:500;color:var(--tx2);
+  letter-spacing:-.02em;margin:0 8px 0 2px}
+.meter{display:flex;gap:3px;height:11px;margin-top:15px}
+.meter i{display:block;border-radius:99px}
+.m-cal{background:repeating-linear-gradient(115deg,rgba(255,255,255,.32) 0 2px,rgba(255,255,255,.09) 2px 6px)}
+.m-nfs{background:linear-gradient(90deg,var(--dev),#9AA6FF);box-shadow:0 0 14px rgba(124,140,255,.65)}
+.m-free{background:rgba(255,255,255,.07)}
+/* 캘린더를 못 읽은 자리 — 비었다고 칠하지 않는다. "모른다"는 별도의 사실이다 */
+.m-unknown{background:repeating-linear-gradient(115deg,rgba(255,128,102,.30) 0 2px,rgba(255,128,102,.07) 2px 6px);
+  border:1px dashed color-mix(in srgb,var(--warn) 45%,transparent)}
+.keys{display:flex;gap:13px;margin-top:12px;font-size:11.5px;color:var(--tx2);flex-wrap:wrap}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.keys b{width:7px;height:7px;border-radius:99px;display:block}
+.keys a{color:var(--tx2);text-decoration:none;border-bottom:1px solid var(--hair)}
+
+.tl-h{position:relative;z-index:5;display:flex;align-items:baseline;justify-content:space-between;
+  margin:24px 22px 12px}
+.tl-h span{font-size:13.5px;font-weight:600;letter-spacing:-.02em}
+.tl-h em{font-style:normal;font-size:11px;color:var(--tx3)}
+.tl{position:relative;z-index:5;margin:0 14px;padding-left:42px;height:calc(var(--hr) * 8)}
+.gl{position:absolute;left:42px;right:0;height:0;border-top:1px solid rgba(255,255,255,.045)}
+.gl b{position:absolute;left:-42px;top:-7px;width:34px;text-align:right;font-size:10.5px;
+  font-weight:500;color:var(--tx3);letter-spacing:-.01em}
+/* 시각 라벨이 앉는 42px 게터를 피해 실제 트랙만 차지한다 (시안 B 와 동일) */
+.lane{position:absolute;inset:0 0 0 42px}
+.blk{position:absolute;left:0;width:69%;border-radius:var(--r-md);padding:7px 12px;z-index:3;
+  background:linear-gradient(140deg,color-mix(in srgb,var(--c) 36%,transparent),
+                                    color-mix(in srgb,var(--c) 14%,transparent));
+  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);backdrop-filter:blur(18px)}
+.blk-t{font-size:13px;font-weight:600;letter-spacing:-.025em;line-height:1.25}
+.blk-m{font-size:10.5px;color:var(--tx2);margin-top:2px;letter-spacing:-.01em}
+.nowline{position:absolute;left:0;right:0;z-index:8;height:0;
+  border-top:1.5px solid var(--now);box-shadow:0 0 14px rgba(255,176,32,.75)}
+.nowline b{position:absolute;left:-42px;top:-9px;height:18px;width:36px;border-radius:99px;
+  background:var(--now);color:#1A1200;font-size:9.5px;font-weight:700;
+  display:grid;place-content:center;letter-spacing:-.01em}
+.nowline::after{content:"";position:absolute;right:-1px;top:-3.5px;width:7px;height:7px;
+  border-radius:99px;background:var(--now);box-shadow:0 0 12px var(--now)}
+.fab{position:absolute;z-index:21;right:20px;bottom:96px;height:50px;padding:0 20px;
+  display:flex;align-items:center;gap:8px;border-radius:99px;border:1px solid var(--hair);
+  background:rgba(30,30,38,.82);backdrop-filter:blur(24px);
+  color:var(--tx);font-size:14px;font-weight:600;letter-spacing:-.02em;
+  box-shadow:0 12px 34px rgba(0,0,0,.5)}
+
+/* ══ 빈 상태 ═══════════════════════════════════════════════
+   "없음"을 그리지 않는다. **아직**을 그린다.
+   그래서 주 오브젝트(링·미터)를 지우지 않고 비워둔 채로 남긴다 */
+.empty-cta{position:relative;z-index:5;margin:26px 22px 0;text-align:center}
+.empty-cta h2{margin:0;font-size:19px;font-weight:600;letter-spacing:-.03em}
+.empty-cta p{margin:9px 0 0;font-size:13.5px;line-height:1.62;color:var(--tx2);letter-spacing:-.012em}
+.empty-cta p.sub{margin-top:5px;color:var(--tx3);font-size:12.5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 26px;
+  border-radius:99px;border:0;font-family:var(--f);font-size:15px;font-weight:600;
+  letter-spacing:-.025em;text-decoration:none;margin-top:22px}
+.btn-p{background:var(--tx);color:#0A0A0D}
+.btn-s{background:rgba(255,255,255,.07);border:1px solid var(--hair);color:var(--tx)}
+.btn:active{transform:scale(.975)}
+
+/* 하루의 빈 상태 — 타임라인 한가운데 앉는 점선 제안.
+   격자 위에 얹히므로 "지금부터 어디까지"가 형태로 보인다 */
+.propose{position:absolute;left:0;width:100%;border-radius:var(--r-md);z-index:4;
+  border:1px dashed rgba(255,255,255,.16);
+  background:linear-gradient(165deg,rgba(255,176,32,.07),rgba(255,255,255,.012));
+  display:grid;place-content:center;text-align:center;gap:12px;padding:0 18px}
+.propose p{margin:0;font-size:14.5px;font-weight:500;letter-spacing:-.02em;line-height:1.5}
+.propose .btn{height:44px;padding:0 20px;font-size:14px;margin-top:0}
+
+/* ══ 에러 ══════════════════════════════════════════════════
+   화면을 덮지 않는다. 실패한 조각의 자리에서만 말한다 */
+.inline-err{position:relative;z-index:5;margin:14px 14px 0;padding:14px 16px;
+  border-radius:var(--r-lg);
+  border:1px solid color-mix(in srgb,var(--warn) 34%,transparent);
+  background:color-mix(in srgb,var(--warn) 10%,transparent);
+  display:flex;align-items:center;gap:12px}
+.inline-err .txt{flex:1;min-width:0}
+.inline-err .txt b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.02em;color:#FFB6A5}
+.inline-err .txt span{display:block;font-size:11.5px;color:var(--tx2);margin-top:3px;letter-spacing:-.005em}
+/* 재시도는 문장 안 링크가 아니라 44px 타겟이다. 실패한 사람이 두 번 실패하면 안 된다 */
+.retry{flex:none;height:36px;padding:0 15px;border-radius:99px;
+  background:rgba(255,255,255,.09);border:1px solid var(--hair);color:var(--tx);
+  font-family:var(--f);font-size:12.5px;font-weight:600;letter-spacing:-.02em;
+  display:inline-flex;align-items:center;gap:6px}
+
+/* 조각 하나가 통째로 실패했을 때 — 그 카드의 자리를 그대로 차지한다.
+   높이를 정상 카드와 맞춰야 위아래가 안 튄다 */
+.err-card{position:relative;z-index:5;margin:22px 14px 0;padding:26px 22px;
+  border-radius:var(--r-xl);border:1px dashed rgba(255,255,255,.14);
+  background:rgba(255,255,255,.022);text-align:center}
+.err-card b{display:block;font-size:14.5px;font-weight:600;letter-spacing:-.025em}
+.err-card p{margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--tx3);letter-spacing:-.005em}
+.err-card .retry{margin-top:16px;height:42px;padding:0 20px;font-size:13.5px}
+
+/* 헤더 아이콘의 실패 점 (화면정의서 S-03) */
+.err-dot{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:99px;
+  background:var(--warn);border:2px solid var(--bg);box-shadow:0 0 9px var(--warn)}
+
+/* ── 미연동 배너 : 경고가 아니다 ─────────────
+   사고가 아니라 **제안**이라서 무채색을 쓴다.
+   여기에 --warn 을 칠하면 사용자는 자기가 뭘 잘못한 줄 안다 */
+.offer{position:relative;z-index:5;margin:14px 14px 0;padding:16px 18px;
+  color:var(--tx);text-decoration:none;
+  border-radius:var(--r-xl);border:1px solid var(--hair);
+  background:linear-gradient(165deg,rgba(255,255,255,.06),rgba(255,255,255,.018));
+  display:flex;align-items:center;gap:14px}
+.offer .g{flex:none;width:38px;height:38px;border-radius:99px;background:var(--s2);color:var(--tx2);
+  border:1px solid var(--hair);display:grid;place-items:center}
+.offer .txt{flex:1;min-width:0}
+.offer .txt b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.02em}
+.offer .txt span{display:block;font-size:11.5px;color:var(--tx3);margin-top:3px;letter-spacing:-.005em}
+.offer .go{flex:none;color:var(--tx2)}
+
+@media (prefers-reduced-motion:no-preference){
+  .budget,.tl-h,.tl,.list,.err-card,.offer,.empty-cta{animation:up .62s var(--ease) both}
+  .tl-h{animation-delay:.07s}.tl{animation-delay:.11s}
+  @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<header class="page">
+  <h1>시안 G — 빈 상태 · 로딩 · 에러 (D-06)</h1>
+  <p>
+    모든 데이터 화면은 <b>로딩 · 정상 · 비어 있음 · 에러</b> 네 상태를 갖는다. 하나라도 빠지면 미완성이다
+    (화면정의서 §0.4). 이 시안은 그 중 정상을 뺀 셋을 화면별로 정의한다.<br>
+    핵심은 <b>공용 상태 컴포넌트를 만들지 않는 것</b>이다. 리포트의 주 오브젝트는 링, 하루의 주 오브젝트는
+    미터다 — 상태 화면에서도 그 오브젝트가 주인공이어야 한다.
+  </p>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════
+     1. 로딩
+     ══════════════════════════════════════════════════════════ -->
+<div class="rail-h">1 · 로딩 — 스켈레톤은 그 화면의 실루엣이다</div>
+<div class="grid">
+
+<!-- ── 1-A 리포트 로딩 ──────────────────────────────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-r dim"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <span class="chip">2026년 8월
+          <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span class="icon-btn"></span>
+      </div>
+
+      <!-- 캡션 문구는 데이터가 아니다. 서버를 기다릴 이유가 없어 진짜를 그린다 -->
+      <div class="hero">
+        <p class="hero-cap">이번 달에 쓴 시간</p>
+        <!-- 히어로 숫자 자리 — 높이 59px 은 62px 글자의 실제 시각 높이다.
+             폭도 "187시간30분" 만큼만 잡는다. 100% 로 깔면 도착할 때 확 줄어 튄다 -->
+        <span class="sk" style="height:44px;width:236px;border-radius:12px;margin-top:6px"></span>
+        <span class="sk" style="height:29px;width:96px;margin-top:14px"></span>
+      </div>
+
+      <div class="seg">
+        <button class="on">전체</button><button>집중</button><button>일정</button>
+      </div>
+
+      <!-- 링 : 같은 r=76, 같은 stroke-width=13. 도착하면 색만 들어온다 -->
+      <div class="ring-wrap">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="sk-breathe" cx="100" cy="100" r="76" fill="none"
+                  stroke="rgba(255,255,255,.06)" stroke-width="13"/>
+        </svg>
+        <div class="ring-mid">
+          <span class="sk" style="height:11px;width:64px;margin:0 auto"></span>
+          <span class="sk" style="height:24px;width:118px;border-radius:8px;margin:9px auto 0"></span>
+          <span class="sk" style="height:11px;width:74px;margin:11px auto 0"></span>
+        </div>
+      </div>
+
+      <div class="list">
+        <div class="row">
+          <span class="sk" style="width:9px;height:9px"></span>
+          <div>
+            <span class="sk" style="height:13px;width:58px"></span>
+            <span class="sk" style="height:10px;width:124px;margin-top:7px"></span>
+            <div class="track"></div>
+          </div>
+          <div class="row-val">
+            <span class="sk" style="height:13px;width:50px;margin-left:auto"></span>
+            <span class="sk" style="height:9px;width:34px;margin:7px 0 0 auto"></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="sk" style="width:9px;height:9px"></span>
+          <div>
+            <span class="sk" style="height:13px;width:44px"></span>
+            <span class="sk" style="height:10px;width:132px;margin-top:7px"></span>
+            <div class="track"></div>
+          </div>
+          <div class="row-val">
+            <span class="sk" style="height:13px;width:50px;margin-left:auto"></span>
+            <span class="sk" style="height:9px;width:30px;margin:7px 0 0 auto"></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="sk" style="width:9px;height:9px"></span>
+          <div>
+            <span class="sk" style="height:13px;width:52px"></span>
+            <span class="sk" style="height:10px;width:118px;margin-top:7px"></span>
+            <div class="track"></div>
+          </div>
+          <div class="row-val">
+            <span class="sk" style="height:13px;width:50px;margin-left:auto"></span>
+            <span class="sk" style="height:9px;width:36px;margin:7px 0 0 auto"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#" class="on">리포트</a><a href="#">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>리포트 로딩</b> — 링 자리에 링이, 목록 자리에 목록이 있다.<br>
+    도착해도 <b>한 픽셀도 움직이지 않는다.</b> 그게 스피너를 금지한 진짜 이유다.</figcaption>
+</figure>
+
+<!-- ── 1-B 하루 로딩 ────────────────────────────────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-d dim"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <!-- 날짜는 서버가 필요 없다. 오늘이 며칠인지는 이미 안다 -->
+      <div class="nav">
+        <h1>오늘<span>8월 20일 목요일</span></h1>
+        <span class="icon-btn">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+
+      <div class="budget">
+        <div class="budget-cap"><span>오늘 남은 시간</span><em>자정까지 9시간 53분</em></div>
+        <span class="sk" style="height:32px;width:196px;border-radius:10px;margin-top:9px"></span>
+        <!-- 미터도 실제 높이 11px 그대로. 세그먼트를 나누지 않는다 —
+             몇 조각이 올지 모르는데 세 조각을 그려두면 도착할 때 갈라진다 -->
+        <span class="sk" style="height:11px;width:100%;margin-top:15px"></span>
+        <div class="keys">
+          <span class="sk" style="height:11px;width:88px"></span>
+          <span class="sk" style="height:11px;width:78px"></span>
+          <span class="sk" style="height:11px;width:64px"></span>
+        </div>
+      </div>
+
+      <div class="tl-h"><span>타임라인</span><em class="num">13:00 – 21:00</em></div>
+
+      <!-- ⭐ 격자·시각 라벨·지금 선은 **데이터가 아니라 시간**이다.
+           스켈레톤으로 덮으면 이미 아는 것을 일부러 늦게 보여주는 셈이다 -->
+      <div class="tl">
+        <div class="gl" style="top:0"><b class="num">13</b></div>
+        <div class="gl" style="top:46px"><b class="num">14</b></div>
+        <div class="gl" style="top:92px"><b class="num">15</b></div>
+        <div class="gl" style="top:138px"><b class="num">16</b></div>
+        <div class="gl" style="top:184px"><b class="num">17</b></div>
+        <div class="gl" style="top:230px"><b class="num">18</b></div>
+        <div class="gl" style="top:276px"><b class="num">19</b></div>
+        <div class="gl" style="top:322px"><b class="num">20</b></div>
+        <div class="gl" style="top:368px"><b class="num">21</b></div>
+
+        <!-- 블록이 몇 개 올지는 모른다. 세 칸을 그려두는 건 거짓말이 아니라
+             "여기에 무언가 온다"는 자리 표시다 — 폭·높이는 실제 블록 규격을 따른다 -->
+        <div class="lane">
+          <span class="sk" style="position:absolute;left:0;top:98px;width:69%;height:63px;border-radius:16px"></span>
+          <span class="sk" style="position:absolute;left:0;top:190px;width:100%;height:34px;border-radius:16px"></span>
+          <span class="sk" style="position:absolute;left:0;top:250px;width:69%;height:40px;border-radius:16px"></span>
+
+          <div class="nowline" style="top:52px"><b class="num">14:07</b></div>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#">리포트</a><a href="#" class="on">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>하루 로딩</b> — ⭐ 격자·시각·<b>지금 선</b>은 덮지 않는다.<br>
+    서버가 주는 값이 아니라 이미 아는 시간이다.</figcaption>
+</figure>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     2. 비어 있음
+     ══════════════════════════════════════════════════════════ -->
+<div class="rail-h">2 · 비어 있음 — “없음”이 아니라 “아직”을 그린다</div>
+<div class="grid">
+
+<!-- ── 2-A 리포트 · 기록 0 ──────────────────────────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-r"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <span class="chip">2026년 8월
+          <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span class="icon-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.4" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.4v2M8 12.6v2M14.6 8h-2M3.4 8h-2M12.7 3.3l-1.4 1.4M4.7 11.3l-1.4 1.4M12.7 12.7l-1.4-1.4M4.7 4.7L3.3 3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+      </div>
+
+      <!-- ⭐ 62px 로 `0시간 0분` 을 쓰지 않는다.
+           히어로 숫자는 성취를 재는 자리다. 거기에 0 을 크게 박으면
+           "아직 시작 전"이 "이미 실패"로 읽힌다 -->
+      <div class="ring-wrap" style="margin-top:38px">
+        <svg viewBox="0 0 200 200" role="img" aria-label="아직 기록이 없습니다">
+          <!-- 트랙만 남긴다. 값이 없는데 색을 칠하면 차트가 거짓말을 한다 -->
+          <circle cx="100" cy="100" r="76" fill="none" stroke="rgba(255,255,255,.055)" stroke-width="13"/>
+        </svg>
+        <div class="ring-mid">
+          <b>가장 많이 쓴 곳</b>
+          <s style="color:var(--tx3)">아직 없음</s>
+          <u>8월 1일 – 20일</u>
+        </div>
+      </div>
+
+      <div class="empty-cta">
+        <h2>이 달은 아직 비어 있습니다</h2>
+        <p>블록을 하나 만들어 25분을 실제로 살아보세요.<br>
+           끝나는 순간 이 링에 첫 조각이 생깁니다.</p>
+        <p class="sub">기록은 타이머가 돈 시간과 캘린더 일정에서 함께 쌓입니다.</p>
+        <a class="btn btn-p" href="#">오늘 계획하기</a>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#" class="on">리포트</a><a href="#">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>리포트 · 기록 0</b> — 링을 지우지 않는다. 지우면 이 화면이 무엇인지 배울 기회를 잃는다.<br>
+    <b>62px 로 `0시간` 을 쓰지 않는다</b> — “아직 시작 전”이 “이미 실패”로 읽힌다.</figcaption>
+</figure>
+
+<!-- ── 2-B 하루 · 오늘 아무것도 없음 ────────────────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-d"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <h1>오늘<span>8월 20일 목요일</span></h1>
+        <button class="icon-btn" aria-label="캘린더 다시 불러오기">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <!-- ⭐ 하루의 빈 상태는 '없음'이 아니다.
+           **남은 시간이 최대치인 상태**다. 이 앱에서 가장 좋은 상태이지 나쁜 상태가 아니다.
+           그래서 회색으로 죽이지 않고 숫자를 정상 크기로 살려 둔다 -->
+      <div class="budget">
+        <div class="budget-cap"><span>오늘 남은 시간</span><em class="num">자정까지 9시간 53분</em></div>
+        <p class="budget-num num">9<i>시간</i>53<i>분</i></p>
+        <div class="meter" role="img" aria-label="오늘 잡힌 일정이 없습니다. 자정까지 9시간 53분이 모두 남아 있습니다">
+          <i class="m-free" style="width:100%"></i>
+        </div>
+        <div class="keys">
+          <span><b style="background:rgba(255,255,255,.12)"></b>아직 아무것도 잡히지 않았습니다</span>
+        </div>
+      </div>
+
+      <div class="tl-h"><span>타임라인</span><em class="num">13:00 – 21:00</em></div>
+
+      <div class="tl">
+        <div class="gl" style="top:0"><b class="num">13</b></div>
+        <div class="gl" style="top:46px"><b class="num">14</b></div>
+        <div class="gl" style="top:92px"><b class="num">15</b></div>
+        <div class="gl" style="top:138px"><b class="num">16</b></div>
+        <div class="gl" style="top:184px"><b class="num">17</b></div>
+        <div class="gl" style="top:230px"><b class="num">18</b></div>
+        <div class="gl" style="top:276px"><b class="num">19</b></div>
+        <div class="gl" style="top:322px"><b class="num">20</b></div>
+        <div class="gl" style="top:368px"><b class="num">21</b></div>
+
+        <!-- 제안은 카드가 아니라 **격자 위의 구간**이다.
+             "지금부터 3시간"이 어디까지인지 형태가 말한다 -->
+        <div class="lane">
+          <div class="propose" style="top:52px;height:138px">
+            <p>지금부터 3시간,<br>무엇에 쓸까요?</p>
+            <a class="btn btn-p" href="#">블록 만들기</a>
+          </div>
+
+          <div class="nowline" style="top:52px"><b class="num">14:07</b></div>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <button class="fab">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      블록
+    </button>
+    <nav class="tabs">
+      <a href="#">리포트</a><a href="#" class="on">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>하루 · 오늘 비어 있음</b> — ⭐ 나쁜 상태가 아니라 <b>남은 시간이 최대인 상태</b>다.<br>
+    제안을 격자 위 구간으로 놓아 “3시간”이 형태로 보이게 한다.</figcaption>
+</figure>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     3. 에러
+     ══════════════════════════════════════════════════════════ -->
+<div class="rail-h">3 · 에러 — 화면을 덮지 않는다, 아는 것은 남긴다</div>
+<div class="grid">
+
+<!-- ── 3-A 하루 · 캘린더를 못 불러옴 (부분 실패) ────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-d"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <h1>오늘<span>8월 20일 목요일</span></h1>
+        <!-- 헤더 아이콘 옆 점 (화면정의서 S-03). 배지 하나로 "여기 문제가 있다"를 말한다 -->
+        <button class="icon-btn" aria-label="캘린더를 불러오지 못했습니다. 다시 시도">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="err-dot"></span>
+        </button>
+      </div>
+
+      <!-- ⭐ 캘린더를 못 읽었어도 **내 블록은 안다.**
+           미터를 통째로 지우면 아는 것까지 잃는다.
+           모르는 자리는 비었다고 칠하지 않고 '모른다'로 칠한다 -->
+      <div class="budget">
+        <div class="budget-cap"><span>오늘 남은 시간</span><em class="num">자정까지 9시간 53분</em></div>
+        <p class="budget-num num">7<i>시간</i>23<i>분</i><span style="font-size:13px;font-weight:500;color:#FFB6A5;letter-spacing:-.01em;margin-left:10px">일정 제외</span></p>
+        <div class="meter" role="img" aria-label="내 블록 2시간 30분. 캘린더 일정은 불러오지 못해 알 수 없습니다">
+          <i class="m-nfs" style="width:10.4%"></i>
+          <i class="m-unknown" style="width:18%"></i>
+          <i class="m-free" style="width:71%"></i>
+        </div>
+        <div class="keys">
+          <span><b style="background:var(--dev)"></b>내 블록 <span class="num">2:30</span></span>
+          <span><b style="background:color-mix(in srgb,var(--warn) 60%,transparent)"></b>캘린더 <b style="width:auto;height:auto;font-weight:600;color:#FFB6A5">알 수 없음</b></span>
+        </div>
+      </div>
+
+      <div class="inline-err">
+        <div class="txt">
+          <b>캘린더를 불러오지 못했어요</b>
+          <span>지난번에 읽은 일정으로 보여주고 있습니다 · 14:02</span>
+        </div>
+        <button class="retry">
+          <svg width="12" height="12" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          다시
+        </button>
+      </div>
+
+      <div class="tl-h"><span>타임라인</span><em class="num">13:00 – 21:00</em></div>
+
+      <div class="tl">
+        <div class="gl" style="top:0"><b class="num">13</b></div>
+        <div class="gl" style="top:46px"><b class="num">14</b></div>
+        <div class="gl" style="top:92px"><b class="num">15</b></div>
+        <div class="gl" style="top:138px"><b class="num">16</b></div>
+        <div class="gl" style="top:184px"><b class="num">17</b></div>
+        <div class="gl" style="top:230px"><b class="num">18</b></div>
+        <div class="gl" style="top:276px"><b class="num">19</b></div>
+        <div class="gl" style="top:322px"><b class="num">20</b></div>
+        <div class="gl" style="top:368px"><b class="num">21</b></div>
+
+        <div class="lane">
+          <!-- 내 블록은 그대로 산다. 실패한 건 캘린더뿐이다 -->
+          <div class="blk" style="--c:var(--dev);top:98px;height:86px">
+            <div class="blk-t">API 레이어 정리</div>
+            <div class="blk-m num">15:10 – 17:00 · 110분</div>
+          </div>
+
+          <div class="nowline" style="top:52px"><b class="num">14:07</b></div>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#">리포트</a><a href="#" class="on">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>부분 실패</b> — 화면을 덮지 않고 그 조각의 자리에서만 말한다.<br>
+    ⭐ 미터의 캘린더 구간을 <b>비움이 아니라 “알 수 없음”</b>으로 칠한다. 0시간과 모름은 다른 사실이다.</figcaption>
+</figure>
+
+<!-- ── 3-B 리포트 · 통계를 못 불러옴 (조각 실패) ────────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-r"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <span class="chip">2026년 8월
+          <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span class="icon-btn"></span>
+      </div>
+
+      <!-- 총계는 왔다. 태그별 분해만 실패했다.
+           총계까지 지우면 "아무것도 모른다"가 되는데, 사실이 아니다 -->
+      <div class="hero">
+        <p class="hero-cap">이번 달에 쓴 시간</p>
+        <h1 class="hero-num num">187<em>시간</em>30<em>분</em></h1>
+      </div>
+
+      <div class="seg">
+        <button class="on">전체</button><button>집중</button><button>일정</button>
+      </div>
+
+      <!-- 실패한 카드가 정상 카드의 자리를 그대로 차지한다.
+           높이를 맞춰야 재시도로 성공했을 때 위아래가 안 튄다 -->
+      <div class="err-card" style="margin-top:34px;min-height:300px;display:grid;place-content:center">
+        <div>
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" style="margin:0 auto 14px;display:block;opacity:.5">
+            <circle cx="17" cy="17" r="13" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3.5 4"/>
+          </svg>
+          <b>태그별 분포를 불러오지 못했어요</b>
+          <p>총 시간은 위에 그대로 있습니다.<br>분포만 다시 불러오면 됩니다.</p>
+          <button class="retry">
+            <svg width="13" height="13" viewBox="0 0 17 17" fill="none"><path d="M15 8.5a6.5 6.5 0 1 1-1.9-4.6M15 1.6v3.9h-3.9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            다시 불러오기
+          </button>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#" class="on">리포트</a><a href="#">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>조각 실패</b> — 총계는 왔고 분포만 실패했다. 총계까지 지우면 사실이 아닌 화면이 된다.<br>
+    실패 카드는 <b>정상 카드의 자리와 높이를 그대로</b> 차지한다 — 재시도가 성공해도 안 튄다.</figcaption>
+</figure>
+
+<!-- ── 3-C 리포트 · 캘린더 미연동 (에러가 아니다) ───────── -->
+<figure class="case">
+  <div class="device">
+    <div class="bloom-r"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+      <div class="status">
+        <span class="num">14:07</span>
+        <svg width="66" height="12" viewBox="0 0 66 12" fill="none" opacity=".9">
+          <rect x="42" y="1" width="21" height="10" rx="2.6" stroke="#fff" stroke-opacity=".45"/>
+          <rect x="43.6" y="2.6" width="15" height="6.8" rx="1.4" fill="#fff"/>
+          <path d="M2 8.5V4M8 8.5V2M14 8.5V6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="nav">
+        <span class="chip">2026년 8월
+          <svg width="9" height="6" viewBox="0 0 9 6" fill="none"><path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span class="icon-btn"></span>
+      </div>
+
+      <div class="hero">
+        <p class="hero-cap">이번 달 집중한 시간</p>
+        <h1 class="hero-num num">42<em>시간</em>10<em>분</em></h1>
+      </div>
+
+      <!-- 미연동이면 `일정` 세그먼트를 **비활성으로 보여준다.**
+           숨기면 이 앱에 그런 축이 있다는 사실 자체를 모르게 된다 (§1.3 의 반대 경우) -->
+      <div class="seg">
+        <button class="on">전체</button>
+        <button>집중</button>
+        <button style="color:var(--tx3)">일정</button>
+      </div>
+
+      <!-- ⭐ 경고색을 쓰지 않는다. 사고가 아니라 제안이다.
+           여기에 --warn 을 칠하면 사용자는 자기가 뭘 잘못한 줄 안다 -->
+      <a class="offer" href="#">
+        <span class="g">
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+            <rect x="1.5" y="3" width="14" height="12.5" rx="3" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M1.5 7h14M5.5 1.5V4M11.5 1.5V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="txt">
+          <b>구글 캘린더를 연결하면</b>
+          <span>회의·약속에 쓴 <b style="display:inline;font-weight:600">일정 시간</b>도 함께 보입니다</span>
+        </span>
+        <span class="go">
+          <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1.5 1.5L6.5 6.5l-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </a>
+
+      <div class="ring-wrap">
+        <svg viewBox="0 0 200 200" role="img" aria-label="집중 시간 42시간 10분의 태그별 분포">
+          <circle cx="100" cy="100" r="76" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="13"/>
+          <g transform="rotate(-90 100 100)">
+            <circle cx="100" cy="100" r="76" fill="none" stroke="var(--dev)" stroke-width="13" stroke-dasharray="196 477.5" stroke-dashoffset="0"/>
+            <circle cx="100" cy="100" r="76" fill="none" stroke="var(--study)" stroke-width="13" stroke-dasharray="118 477.5" stroke-dashoffset="-202"/>
+            <circle cx="100" cy="100" r="76" fill="none" stroke="var(--self)" stroke-width="13" stroke-dasharray="82 477.5" stroke-dashoffset="-326"/>
+          </g>
+        </svg>
+        <div class="ring-mid">
+          <b>가장 많이 쓴 곳</b>
+          <s style="color:var(--dev)">개발 <span class="num">17:20</span></s>
+          <u>집중 시간만</u>
+        </div>
+      </div>
+
+      <div class="list" style="margin-top:18px">
+        <div class="row">
+          <span class="dot" style="background:var(--dev);color:var(--dev)"></span>
+          <div><div class="row-name">개발</div><div class="row-sub">집중 17:20</div>
+            <div class="track"><i style="width:78%;background:var(--dev)"></i></div></div>
+          <div class="row-val"><b class="num">17:20</b></div>
+        </div>
+        <div class="row">
+          <span class="dot" style="background:var(--study);color:var(--study)"></span>
+          <div><div class="row-name">학습</div><div class="row-sub">집중 10:25</div>
+            <div class="track"><i style="width:47%;background:var(--study)"></i></div></div>
+          <div class="row-val"><b class="num">10:25</b></div>
+        </div>
+      </div>
+
+      <div class="pad"></div>
+    </div>
+
+    <nav class="tabs">
+      <a href="#" class="on">리포트</a><a href="#">하루</a><a href="#">집중</a>
+    </nav>
+  </div>
+  <figcaption><b>캘린더 미연동</b> — ⭐ 에러가 아니다. <b>경고색을 쓰지 않는다.</b><br>
+    `일정` 세그먼트는 숨기지 않고 비활성으로 두고, 배너를 <b>바로 아래</b>에 붙인다.<br>
+    질문(비활성 축)과 답(연결하면 보입니다)이 떨어져 있으면 아무도 잇지 않는다.</figcaption>
+</figure>
+
+</div>
+
+</body>
+</html>
