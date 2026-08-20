@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:tz": "node scripts/test-timezones.mjs",
     "db:generate": "pnpm --filter @nfs/db generate",
     "db:migrate": "pnpm --filter @nfs/db migrate",
     "postinstall": "pnpm --filter @nfs/db generate"
