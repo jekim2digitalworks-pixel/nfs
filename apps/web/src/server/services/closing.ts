@@ -19,6 +19,7 @@ import {
     instantToColumn,
 } from '@nfs/domain/time';
 import { prisma } from '../prisma';
+import { syncCalendarWeek } from './calendar-sync';
 import { loadDayOccupants } from './day-occupants';
 
 /**
@@ -37,9 +38,9 @@ import { loadDayOccupants } from './day-occupants';
  *   | 길이 | 최대 3시간 = 최대 2일 | 상한 없음 → 날짜별로 겹침을 재고 더한다 |
  *   | 되돌리기 | 없음 | 없음 (재개봉 없음 · 정책 §3.3) |
  *
- * ⚠️ **최종 동기화(정책 §3.2 의 1단계)는 아직 없다.** B-11(일정 읽기 동기화)이 없어서
- *    캘린더를 읽는 코드 경로 자체가 존재하지 않는다. 그 자리는 `performFinalCalendarSync`
- *    한 곳으로 모아뒀고, 지금은 연동 상태만 기록한다 (아래 주석 참조).
+ * ⭐ **최종 동기화(정책 §3.2 의 1단계)가 붙었다** (B-11). 마감 직전에 그 주를 한 번 더 읽어
+ *    막판에 들어온 일정까지 원장에 담는다. 실패하면 마감을 멈추는 게 아니라
+ *    `FAILED` 로 남기고 **이미 쌓여 있던 일정으로 마감한다** — 아래 `performFinalCalendarSync` 참조.
  */
 
 export interface WeekClosingResult {
@@ -78,10 +79,16 @@ interface FinalSyncOutcome {
 }
 
 /**
- * 마감 직전 최종 1회 동기화 — **B-11 이 붙을 자리** (정책 §3.2 1단계)
+ * 마감 직전 최종 1회 동기화 (B-11 · 정책 §3.2 1단계)
  *
- * 지금은 구글을 읽는 코드가 없다. 그래도 이 함수를 미리 두는 이유:
- * 나중에 동기화를 붙일 때 마감 트랜잭션을 다시 열지 않게 하려는 것이다.
+ * 주중 내내 동기화가 돌고 있어도 **마감 직전에 한 번 더 읽는다.**
+ * 일요일 오후에 추가한 일정은 그 뒤로 동기화가 한 번도 안 돌았을 수 있고,
+ * 마감이 지나고 나면 그 주를 읽는 코드 경로가 영영 사라지기 때문이다.
+ *
+ * ⭐ **실패해도 마감을 멈추지 않는다.** 여기서 예외를 위로 던지면 `runWeeklyClosing` 이
+ *    그 회원을 `failedMemberIds` 로 넘기고 그 주는 열린 채 남는다. 그러면 남은 일정이
+ *    예산 계산기에 계속 점유자로 잡혀 **하루가 조용히 좁아진다.**
+ *    구글이 죽은 것과 그 주를 못 닫는 것은 별개의 사고다 — 읽은 데까지로 닫고 사유를 남긴다.
  *
  * ⭐ **연동돼 있는데 최종 동기화를 못 했으면 `FAILED` 로 남긴다.**
  *    정책 §3.4 — *"조용히 0시간으로 처리하지 않는다."*
@@ -89,8 +96,11 @@ interface FinalSyncOutcome {
  *    사용자는 비어 있는 주를 보고 자기가 일을 안 했다고 착각한다.
  */
 async function performFinalCalendarSync(
+    memberId: bigint,
+    weekStartDate: string,
     googleScopeLevel: GoogleScopeLevel,
     googleRefreshToken: string | null,
+    now: DateTime,
 ): Promise<FinalSyncOutcome> {
     if (googleScopeLevel === 'NONE') {
         return { result: 'NOT_CONNECTED', syncedTime: null };
@@ -99,8 +109,27 @@ async function performFinalCalendarSync(
         return { result: 'NOT_CONNECTED', syncedTime: null };
     }
 
-    // TODO(B-11): calendar-sync.ts 가 생기면 여기서 지난주 구간을 최종 1회 읽는다.
-    return { result: 'FAILED', syncedTime: null };
+    // syncCalendarWeek 은 토큰 만료·구글 장애를 status 로 돌려준다(throw 하지 않는다).
+    // 그래도 감싸는 이유: fetch 가 아예 끊기거나 DB 가 튕기면 예외가 올라온다
+    try {
+        const syncView = await syncCalendarWeek(memberId, weekStartDate, now);
+
+        if (syncView.status === 'SYNCED') {
+            return { result: 'SYNCED', syncedTime: syncView.syncedTime };
+        }
+        if (syncView.status === 'NOT_CONNECTED') {
+            return { result: 'NOT_CONNECTED', syncedTime: null };
+        }
+        return { result: 'FAILED', syncedTime: null };
+    } catch (caught) {
+        console.error(
+            '[nfs] 마감 직전 최종 동기화 실패',
+            memberId.toString(),
+            weekStartDate,
+            caught,
+        );
+        return { result: 'FAILED', syncedTime: null };
+    }
 }
 
 /**
@@ -159,7 +188,7 @@ async function measureEventMinutes(
  * 한 회원의 한 주를 마감한다.
  *
  * 순서 (데이터모델 §3.2)
- *   1. 최종 동기화 (지금은 연동 상태만 판정)
+ *   1. 최종 동기화 (B-11 · 실패해도 이미 쌓인 일정으로 계속 간다)
  *   2. 제외되지 않은 일정만 대상
  *   3. 일정별 겹침 차감 → 0분이면 스킵
  *   4. TimeLog INSERT
@@ -228,8 +257,11 @@ export async function closeWeek(
     }
 
     const syncOutcome = await performFinalCalendarSync(
+        memberId,
+        weekStartDate,
         member.googleScopeLevel,
         member.googleRefreshToken,
+        now,
     );
 
     const events = await prisma.importedCalendarEvent.findMany({

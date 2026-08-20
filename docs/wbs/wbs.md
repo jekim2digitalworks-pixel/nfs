@@ -7,7 +7,7 @@
 |---|---|
 | 최종 갱신 | **2026-08-20** (세션 종료 시점) |
 | 갱신자 | 개발 (아키텍트) |
-| 전체 진행률 | **35 / 44 작업 완료 (80%)** · MVP 범위는 41작업 (Phase 5 제외) · B-11 진행 중 |
+| 전체 진행률 | **35 / 44 작업 완료 (80%)** · MVP 범위는 41작업 (Phase 5 제외) · B-11 코드 완료 · 실검증 대기 |
 
 ---
 
@@ -15,7 +15,8 @@
 
 **지금 단계:** **Phase 2 완료 · Phase 4 마무리 중** — 핵심 3화면(리포트·하루·집중)이 다 돈다
 
-**마지막 커밋:** `8d6c91e` feat(U-05 · F-01) · 2026-08-20 → **이 세션에서 F-02·B-11(부분) 커밋 예정**
+**마지막 커밋:** `f54b44e` feat(B-11) 하루 화면 "캘린더 다시 불러오기" · 2026-08-20
+→ **이 세션에서 B-11 마감 연결(N-035) 커밋**
 
 ⛔ **이 PC 에서 Vercel 배포가 막혀 있다.** 사내망(DNS `V-CWAD1.coway.io`)이 `vercel.com` ·
 `api.vercel.com` · `*.vercel.app` 의 TLS 를 끊는다(curl 35). github.com 은 정상.
@@ -33,6 +34,7 @@
 주간 마감   POST /api/jobs/weekly-closing — 기한 넘긴 주를 동결. 실DB 검증 완료
 통계        기간별 집계 · 태그별 · 월별 추이. 실DB 숫자 대조 완료
 화면        리포트 · 하루(예산미터·타임라인) · 블록 생성 시트 · **집중(다이얼·서버 동기 타이머)**
+캘린더      POST /api/calendar/sync — 이번 주 읽기 + 필터 7종. **아직 실계정으로 안 태웠다**
 ```
 
 **테스트 205건** (도메인 187 + 웹 18) · lint · typecheck · build 전부 통과
@@ -46,6 +48,7 @@ packages/domain/
   block/       생성 검증 · 상태 전이 · 정산 값 계산            (45)
   closing/     주 구간 · 마감 기한 · 캘린더→원장 변환          (24)
   statistics/  기간 범위 · 직전 기간 · 비율                    (17)
+  calendar/    필터 7종 · 색상→태그 매핑                    (12)
   errors.ts    에러 코드 7종
 
 packages/db/    schema.prisma 6테이블 — Supabase 에 적용 완료
@@ -54,13 +57,14 @@ apps/web/src/
   server/prisma.ts            커넥션 싱글턴 (풀러 + 어댑터)
   server/auth/                세션(HMAC) · 구글 OAuth · 토큰 암호화(AES-GCM)
   server/http/                응답 봉투 · 에러 매핑 · withMember/withCronSecret
-  server/services/            member · statistics · block · settlement · closing · day-occupants
-  app/api/                    health · me · auth/* · blocks/* · statistics/* · jobs/{daily-settlement,weekly-closing}
+  server/services/            member · statistics · block · settlement · closing · day-occupants · calendar-sync
+  app/api/                    health · me · auth/* · blocks/* · statistics/* · calendar/sync · jobs/{daily-settlement,weekly-closing}
   app/page.tsx                S-02 리포트  ✅
   app/day/page.tsx            S-03 하루    ✅  (?new=1 이면 생성 시트가 열린 채로 뜬다)
   app/focus/page.tsx          진입 분기    ✅  → /focus/{id} 또는 /day?new=1
   app/focus/[blockId]/        S-04 집중    ✅
   hooks/                      useServerClock(오프셋) · useBlockTimer(표시 전용)  ⭐
+  lib/api.ts                  fetch + 봉투 해석 단일 창구 (F-02)
   components/                 chart/Ring · report/* · day/{BudgetMeter,Timeline,BlockSheet} · focus/FocusStage
   styles/                     tokens · base · components · screen-{report,day,block-sheet,focus}
 ```
@@ -76,8 +80,8 @@ apps/web/src/
 - `api/jobs/weekly-closing/route.ts` + `services/closing.ts` + `packages/domain/closing/**` (24 테스트)
 - `.github/workflows/weekly-closing.yml` — `0 19 * * 0` = **KST 월요일** 04:00 (UTC 로는 일요일)
 - 마감 판정은 "지난주니까"가 아니라 **기한(월 04:00) 초과** — 되돌릴 수 없는 작업이라 (**N-032**)
-- ⚠️ **최종 동기화(정책 §3.2 1단계)는 비어 있다.** B-11 이 없다. `performFinalCalendarSync` 한 곳에
-  자리를 잡아뒀고, 연동돼 있는데 못 읽었으면 `SYNCED` 가 아니라 **`FAILED`** 로 남긴다
+- ✅ **최종 동기화(정책 §3.2 1단계)는 이 세션 오후에 채웠다** (N-035). `performFinalCalendarSync` 가
+  `syncCalendarWeek` 을 부른다. 연동돼 있는데 못 읽었으면 `SYNCED` 가 아니라 **`FAILED`** 로 남긴다
 
 두 배치 모두 실DB 로 태워 확인했다(겹침 차감·멱등성·경계). 검증용 행은 전부 삭제했다.
 
@@ -97,49 +101,67 @@ apps/web/src/
 - 집중 화면에서는 **하단 탭이 사라진다.** 나가는 길은 좌상단 닫기뿐이다
 - 시안 C 의 "구글 캘린더에도 남깁니다" 체크박스는 **넣지 않았다** — 쓰기 파이프(B-15)가 Phase 2 다
 
+### ✅ 이 세션에서 추가로 한 것 (2026-08-20 오후) — B-11 마감 연결
+
+**`closing.ts` 의 `performFinalCalendarSync` → `syncCalendarWeek` 연결** (N-032 의 빈 자리를 채웠다)
+
+- 마감 직전 그 주를 한 번 더 읽는다 (정책 §3.2 1단계). 이제 마감의 `SYNCED` 가 살아 있다
+- ⭐ **동기화가 실패해도 마감을 진행한다** — `FAILED` 로 기록하고 이미 쌓인 일정으로 닫는다 (**N-035**)
+  - 미루면 그 주 일정이 예산 계산기에 점유자로 남아 **하루가 조용히 좁아진다**
+  - 토큰 만료(N-028)는 저절로 낫지 않는다 — 미루기만 반복하고 미마감 주가 쌓인다
+- `fetch`·DB 예외까지 `try/catch` 로 삼킨다. 위로 새면 `runWeeklyClosing` 이 주를 열어둔 채 넘긴다
+- lint · typecheck · **테스트 205건** · build(전 라우트 ƒ) 전부 통과
+
+> 📌 남은 리스크(N-035 에 기록): `closeWeek` 이 회원당 구글 호출 1회를 하게 됐다.
+> 회원이 두 자릿수가 되면 `CLOSING_TARGET_LIMIT`(100)을 먼저 낮춘다.
+
 ### 🔜 다음에 할 일 (순서대로)
 
 **0. 배포 + GitHub 시크릿 등록** ⛔ **다른 망에서 해야 한다** (사내망이 Vercel 을 막는다)
 
 크론 워크플로 2종은 만들었지만 **아직 한 번도 실제로 돌지 않았다.** 로컬 dev 로만 검증했다.
 
-1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09·U-06·U-05 만큼 뒤처져 있다
+1. `npx vercel --prod --yes` — 배포본이 U-03·B-06·B-07·U-04·B-08·B-09·U-06·U-05·F-01·F-02·B-11 만큼 뒤처져 있다
 2. Vercel 프로젝트 환경변수에 `CRON_SECRET` 확인 (로컬 `.env.local` 과 같은 값이어야 한다)
 3. GitHub 레포 Settings → Secrets → `APP_URL`(끝에 `/` 없이), `CRON_SECRET`
 4. Actions 탭에서 **두 워크플로를 손으로 한 번씩 돌린다** (`workflow_dispatch`). 크론을 기다리지 않는다
    - 자정 정산: 어제 블록이 없으면 `processedMemberCount: 0` 이 정상
    - 주간 마감: 지난주 캘린더 일정이 없으면 아무것도 안 닫는 게 정상
 
-**1. B-11 캘린더 동기화 마무리** 🟡 ← **여기서 이어받는다**
+**1. B-11 실검증** 🟡 ← **코드는 다 됐다. 남은 건 사용자 손이 필요한 확인 하나뿐이다**
 
-서비스와 필터는 다 만들었다. 남은 건 **연결 세 군데 + 실검증**이다.
-
-- [x] `app/api/calendar/sync/route.ts` — 완료 (실패해도 200 + status 로 내려준다)
-- [x] 하루 화면 헤더 버튼 — 완료. 결과를 문구로 구분해 말한다(미연동/토큰만료/N개 불러옴)
-- [ ] `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) → `syncCalendarWeek` 호출로 교체.
-      이러면 마감의 `SYNCED` 가 살아난다 (N-032 의 빈 자리)
-- [ ] 실검증: 구글 캘린더에 테스트 일정(일반/종일/거절/9시간)을 넣고 동기화 →
-      `imported_calendar_event` 의 `exclusion_reason` 확인. **googleapis.com 은 이 망에서 열린다**(확인함)
-- [ ] ⚠️ 리프레시 토큰이 7일 만료(N-028)라 `invalid_grant` 면 재로그인부터
+- [x] `app/api/calendar/sync/route.ts` — 실패해도 200 + status 로 내려준다
+- [x] 하루 화면 헤더 버튼 — 결과를 문구로 구분해 말한다(미연동/토큰만료/N개 불러옴)
+- [x] `closing.ts` 최종 동기화 연결 (**N-035**)
+- [ ] **실검증** — ⛔ 자동화로 못 한다. 구글 캘린더(사용자 계정)에 테스트 일정을 넣고 브라우저에서 눌러야 한다
+      1. 구글 캘린더에 이번 주 일정 4개: **일반 1시간 · 종일 · 내가 거절한 것 · 9시간짜리**
+      2. 브라우저에서 로그인 → `/day` → 헤더 "캘린더 다시 불러오기"
+      3. `imported_calendar_event` 의 `exclusion_reason` 확인 —
+         종일=`ALL_DAY` · 거절=`DECLINED` · 9시간=`TOO_LONG` · 일반=`null`
+      - ⚠️ 리프레시 토큰이 7일 만료(N-028)다. `FAILED` 가 뜨면 **재로그인부터**
+      - **googleapis.com 은 이 망에서 열린다**(확인함). 막히는 건 vercel 도메인뿐이다
 
 **2. 손으로 한 바퀴 돌려보기** — 브라우저 확장이 연결돼 있지 않아 **클릭 경로를 못 태웠다.**
    서버 경로(SSR·전이 API·리다이렉트)는 전부 확인했지만 다음 두 가지는 눈으로 봐야 한다:
    - `/day` FAB → 칩을 누를 때 미리보기 숫자가 따라오는가
    - `/focus/{id}` 다이얼이 **매초 줄어드는가**, 탭을 백그라운드로 뒀다 돌아왔을 때 값이 튀지 않는가
 
-**2. B-11 캘린더 동기화** — 이게 붙어야 주간 마감의 1단계와 `SYNCED` 가 살아난다.
-   `services/closing.ts` 의 `performFinalCalendarSync` 안 TODO(B-11) 자리에 연결한다
+**3. D-05 · D-06 시안** — 지금 막힌 게 없는 유일한 트랙이다.
+   D-05 온보딩·구글 연동 동의 / D-06 빈 상태·로딩·에러.
+   특히 **D-06 이 급하다** — 지금 화면들이 빈 상태·실패를 임시 문구로 때우고 있다
 
-**3. F-02 API 레이어** (`lib/api.ts`) — 지금 `fetch` + 봉투 해석이 시트·집중 두 곳에 복사돼 있다.
-   세 번째가 생기기 전에 한 곳으로 모은다
+**4. T-03 통합 테스트** — 배치 2종 · 동기화 · 타임존(`TZ=UTC`). B-11 이 붙었으니 이제 쓸 수 있다
 
-**4. D-03 시안**(Q-010 먼저) · **D-05·D-06 시안** · **T-02·T-03 테스트**
+**5. D-03 시안** — ⛔ Q-010(평생 화면 기준 나이) 답이 먼저다
+
+**6. B-12 색상→태그 매핑** — 읽는 쪽(`loadColorMapping`·`mapCategoryTag`)은 이미 있다.
+   **매핑을 만드는 길이 없다** — 서비스·API·화면이 통째로 비어 있어서 지금은 전부 미분류로 들어온다
 
 ### ⚠️ 알아둘 것
 
 | 항목 | 상태 |
 |---|---|
-| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06·U-05·F-01** 이 안 올라갔다 |
+| **배포본이 로컬보다 뒤처져 있다** | 마지막 CLI 배포 이후 U-03·B-06·B-07·U-04·**B-08·B-09·U-06·U-05·F-01·F-02·B-11** 이 안 올라갔다 |
 | ⛔ **이 PC 에서 Vercel 이 안 열린다** | 사내망(DNS `V-CWAD1.coway.io`)이 vercel 도메인의 TLS 를 끊는다 — `npx vercel --prod` 가 `fetch failed`, curl 은 35. DNS 는 정상 해석되고 github 는 200. **다른 망에서 배포할 것** (08-19·08-20 이틀 연속 동일) |
 | **크론이 아직 안 돈다** | 워크플로 2종 작성 완료. GitHub 시크릿(`APP_URL`·`CRON_SECRET`) 미등록 + 배포 전이다 |
 | `gh` CLI 가 없다 | 그래서 시크릿 등록을 대신 해줄 수 없다. 필요하면 `npm i -g gh` 대신 GitHub 웹 UI 가 빠르다 |
@@ -265,8 +287,8 @@ npx vercel logs <url>        실패하면 추측 전에 이것부터
 | ID | 작업 | 역할 | 산출물 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | B-10 | 구글 OAuth (로그인 + 읽기 스코프 · 토큰 암호화) | 개발 | `server/auth/google-oauth.ts`, `token-cipher.ts` | B-03 | ✅ |
-| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `services/calendar-sync.ts` · `packages/domain/calendar/**` (12 테스트) | B-10 | 🟡 |
-| B-12 | 색상(colorId) → 태그 매핑 | 개발 | `src/server/services/category-mapping.ts` | B-11 | ⬜ |
+| B-11 | 일정 읽기 동기화 + 필터 7종 | 개발 | `services/calendar-sync.ts` · `api/calendar/sync` · `closing.ts` 최종 동기화 · `packages/domain/calendar/**` (12 테스트) | B-10 | 🟡 **코드 완료 · 실검증만 남음** |
+| B-12 | 색상(colorId) → 태그 매핑 | 개발 | `src/server/services/category-mapping.ts` — **읽는 쪽만 있다**(`loadColorMapping`·`mapCategoryTag`). 매핑을 만드는 길이 없어 전부 미분류로 들어온다 | B-11 | ⬜ |
 | B-13 | 가입 시 1회 과거 백필 (4~8주) | 개발 | `src/server/services/backfill.ts` | B-11, B-09 | ⬜ |
 | B-15 | 쓰기 파이프 + 에코 루프 차단 | 개발 | `src/server/services/calendar-export.ts` | B-11 | 🅿️ Phase 2 |
 
